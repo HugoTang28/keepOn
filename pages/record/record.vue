@@ -27,12 +27,25 @@
 
 			<view class="group-card">
 				<view v-for="item in group.items" :key="item.id" class="record">
-					<view class="record-dot"></view>
+					<view class="record-dot" :class="{ warn: item.late || item.early }"></view>
 					<view class="record-date">
 						<text class="date-main">{{ item.monthDay }}</text>
 						<text class="date-sub">{{ item.weekday }}</text>
 					</view>
-					<text class="record-time">{{ item.time }}</text>
+					<view v-if="item.late || item.early" class="record-flags">
+						<text v-if="item.late" class="flag late">迟到</text>
+						<text v-if="item.early" class="flag early">早退</text>
+					</view>
+					<view class="record-times">
+						<view class="time-row">
+							<text class="time-tag">签到</text>
+							<text class="time-value">{{ item.startTime }}</text>
+						</view>
+						<view class="time-row">
+							<text class="time-tag">签退</text>
+							<text class="time-value" :class="{ pending: !item.endTime }">{{ item.endTime || '未签退' }}</text>
+						</view>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -51,7 +64,7 @@
 <script setup>
 	import { ref, computed } from 'vue'
 	import { onShow } from '@dcloudio/uni-app'
-	import { getRecords, calcStreak, pad } from '@/utils/common'
+	import { getRecords, calcStreak, formatDate, pad } from '@/utils/common'
 
 	const records = ref([])
 	const WEEK = ['日', '一', '二', '三', '四', '五', '六']
@@ -70,6 +83,13 @@
 		}
 	}
 
+	// 跨零点签退标注"次日"
+	const endLabel = (r) => {
+		if (!r.end) return ''
+		const nextDay = r.end.timestamp && formatDate(new Date(r.end.timestamp)) !== r.date
+		return `${nextDay ? '次日 ' : ''}${r.end.time}`
+	}
+
 	const groups = computed(() => {
 		const map = new Map()
 		records.value.forEach((r) => {
@@ -79,7 +99,10 @@
 			}
 			map.get(p.monthKey).items.push({
 				id: r.id,
-				time: r.time,
+				startTime: r.start ? r.start.time : '--',
+				endTime: endLabel(r),
+				late: !!(r.start && r.start.late),
+				early: !!(r.end && r.end.early),
 				monthDay: p.monthDay,
 				weekday: p.weekday
 			})
@@ -99,8 +122,8 @@
 
 	const load = () => {
 		records.value = getRecords()
-			.filter((r) => r && r.date)
-			.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+			.filter((r) => r && r.date && r.start)
+			.sort((a, b) => (b.start.timestamp || 0) - (a.start.timestamp || 0))
 	}
 
 	const goHome = () => {
@@ -195,6 +218,72 @@
 				border-radius: 50%;
 				background: linear-gradient(135deg, #5b7cfa, #7c5cf6);
 				flex-shrink: 0;
+
+				&.warn {
+					background: linear-gradient(135deg, #f79009, #f04438);
+				}
+			}
+
+			.record-flags {
+				display: flex;
+				flex-direction: column;
+				align-items: flex-end;
+				margin-right: 18rpx;
+
+				.flag {
+					padding: 4rpx 12rpx;
+					border-radius: 999rpx;
+					font-size: 19rpx;
+					line-height: 1.3;
+
+					& + .flag {
+						margin-top: 6rpx;
+					}
+
+					&.late {
+						color: #f79009;
+						background: rgba(247, 144, 9, 0.12);
+					}
+
+					&.early {
+						color: #f04438;
+						background: rgba(240, 68, 56, 0.12);
+					}
+				}
+			}
+
+			.record-times {
+				display: flex;
+				flex-direction: column;
+				align-items: flex-end;
+
+				.time-row {
+					display: flex;
+					align-items: baseline;
+
+					& + .time-row {
+						margin-top: 4rpx;
+					}
+				}
+
+				.time-tag {
+					margin-right: 10rpx;
+					font-size: 19rpx;
+					color: #98a2b3;
+				}
+
+				.time-value {
+					font-size: 28rpx;
+					font-weight: 600;
+					color: #1f2d5e;
+					font-variant-numeric: tabular-nums;
+
+					&.pending {
+						font-size: 22rpx;
+						font-weight: 500;
+						color: #c4c9d4;
+					}
+				}
 			}
 
 			.record-date {
@@ -213,13 +302,6 @@
 					font-size: 21rpx;
 					color: #98a2b3;
 				}
-			}
-
-			.record-time {
-				font-size: 34rpx;
-				font-weight: 600;
-				color: #1f2d5e;
-				font-variant-numeric: tabular-nums;
 			}
 		}
 	}

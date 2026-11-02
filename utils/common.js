@@ -4,6 +4,14 @@ export const RECORD_KEY = 'keepon_checkin_records'
 export const TARGET_KEY = 'keepon_checkin_target'
 export const RANGE = 300
 
+// 考勤规则（单位：当日分钟数）
+export const RULES = {
+  START_EARLIEST: 6 * 60, // 06:00 起可签到
+  START_LATEST: 8 * 60, // 08:00 之后签到记迟到
+  END_EARLIEST: 18 * 60, // 18:00 之前签退记早退
+  END_LATEST: 6 * 60, // 次日 06:00 前可签退
+}
+
 // 默认打卡点
 export const DEFAULT_TARGET = {
   name: '仲恺农业工程学院(海珠校区)',
@@ -20,6 +28,32 @@ export const formatDate = (d) =>
 // 时间 → HH:mm
 export const formatTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
 
+// 时间 → 当日分钟数（用于时间窗判断）
+export const minutesOf = (d) => d.getHours() * 60 + d.getMinutes()
+
+// 当前"考勤日"：凌晨 0:00–06:00 的签退仍归属于前一天
+export const getDutyDate = (d = new Date()) => {
+  const day = new Date(d)
+  if (minutesOf(d) < RULES.END_LATEST) day.setDate(day.getDate() - 1)
+  return formatDate(day)
+}
+
+// 签到是否迟到（晚于 08:00）
+export const isLate = (d) => minutesOf(d) > RULES.START_LATEST
+
+// 签退是否早退（18:00 前签退；次日 0:00–6:00 签退不算早退）
+export const isEarly = (d, dutyDate) =>
+  formatDate(d) === dutyDate && minutesOf(d) < RULES.END_EARLIEST
+
+// 学习时长（毫秒 → 文本）
+export const formatDuration = (ms) => {
+  if (!ms || ms < 0) return '--'
+  const total = Math.floor(ms / 60000)
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return h ? `${h} 小时 ${m} 分` : `${m} 分钟`
+}
+
 // 距离（米）→ 展示文本
 export const formatDistance = (m) => {
   if (m === null || m === undefined) return '--'
@@ -29,10 +63,31 @@ export const formatDistance = (m) => {
 
 export const toast = (title) => uni.showToast({ title, icon: 'none' })
 
-// 读取打卡记录
+// 旧版记录（单次打卡 time/timestamp）→ 签到记录（start），便于兼容历史数据
+export const normalizeRecord = (r) => {
+  if (!r || !r.date) return null
+  if (r.start) return r
+  if (!r.time) return null
+  return {
+    id: r.id || `${r.timestamp || 0}`,
+    date: r.date,
+    start: {
+      time: r.time,
+      timestamp: r.timestamp || 0,
+      late: false,
+      latitude: r.latitude,
+      longitude: r.longitude,
+      distance: r.distance,
+    },
+    end: null,
+  }
+}
+
+// 读取打卡记录（一条 = 一天：start 签到 / end 签退）
 export const getRecords = () => {
   const list = uni.getStorageSync(RECORD_KEY)
-  return Array.isArray(list) ? list : []
+  if (!Array.isArray(list)) return []
+  return list.map(normalizeRecord).filter(Boolean)
 }
 
 export const saveRecords = (list) => {

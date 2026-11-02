@@ -46,8 +46,8 @@
 
 					<view class="checkin-ring" :class="ringClass">
 						<view class="checkin-inner" :class="ringClass" @click="handleCheckIn">
-							<u-icon v-if="checkedToday" class="checkin-icon" name="checkmark" color="#ffffff" size="28" :bold="true"></u-icon>
-							<text v-else class="checkin-icon">打卡</text>
+							<u-icon v-if="finishedToday" class="checkin-icon" name="checkmark" color="#ffffff" size="28" :bold="true"></u-icon>
+							<text v-else class="checkin-icon">{{ punchText }}</text>
 							<text class="checkin-text">{{ btnSubText }}</text>
 						</view>
 					</view>
@@ -85,9 +85,9 @@
 				</view>
 
 				<view class="today-line">
-					<text v-if="todayRecord" class="today-text">今日 {{ todayRecord.time }} 已完成打卡</text>
-					<text v-else class="today-text">今天还没有打卡，到达打卡点后开启学习</text>
-					<text v-if="todayRecord" class="today-sub">距离 {{ formatDistance(todayRecord.distance) }}</text>
+					<text v-if="todayRecord" class="today-text">{{ todaySummary }}</text>
+					<text v-else class="today-text">{{ beforeStart ? '签到 06:00 开始，到点后到打卡点签到' : '今天还没有签到，到达打卡点后开启学习' }}</text>
+					<text v-if="todayRecord" class="today-sub">{{ todaySub }}</text>
 				</view>
 			</view>
 		</view>
@@ -99,10 +99,16 @@
 	import { onShow } from '@dcloudio/uni-app'
 	import {
 		RANGE,
+		RULES,
 		DEFAULT_TARGET,
 		formatDate,
 		formatTime,
 		formatDistance,
+		formatDuration,
+		minutesOf,
+		getDutyDate,
+		isLate,
+		isEarly,
 		toast,
 		getRecords,
 		saveRecords,
@@ -134,7 +140,9 @@
 		return `${d.getMonth() + 1}月${d.getDate()}日 星期${week}`
 	})
 
-	const todayStr = computed(() => formatDate(nowRef.value))
+	// 当前考勤日（凌晨 0:00–06:00 的签退仍算前一天）
+	const todayStr = computed(() => getDutyDate(nowRef.value))
+	const beforeStart = computed(() => minutesOf(nowRef.value) < RULES.START_EARLIEST)
 
 	const loadRecords = () => {
 		records.value = getRecords()
@@ -152,16 +160,21 @@
 		const base = nowRef.value
 		const set = new Set(records.value.map((r) => r.date))
 		const labels = ['日', '一', '二', '三', '四', '五', '六']
+		const todayKey = formatDate(base)
+		// 本周一
+		const monday = new Date(base)
+		const weekday = monday.getDay() === 0 ? 7 : monday.getDay()
+		monday.setDate(monday.getDate() - (weekday - 1))
 		const list = []
-		for (let i = 6; i >= 0; i--) {
-			const d = new Date(base)
-			d.setDate(d.getDate() - i)
+		for (let i = 0; i < 7; i++) {
+			const d = new Date(monday)
+			d.setDate(monday.getDate() + i)
 			const key = formatDate(d)
 			list.push({
 				date: key,
-				label: i === 0 ? '今' : labels[d.getDay()],
+				label: key === todayKey ? '今' : labels[d.getDay()],
 				active: set.has(key),
-				isToday: i === 0
+				isToday: key === todayKey
 			})
 		}
 		return list
@@ -169,8 +182,42 @@
 
 	const weekDone = computed(() => weekDays.value.filter((d) => d.active).length)
 
-	const checkedToday = computed(() => records.value.some((r) => r.date === todayStr.value))
 	const todayRecord = computed(() => records.value.find((r) => r.date === todayStr.value) || null)
+	const startedToday = computed(() => !!(todayRecord.value && todayRecord.value.start))
+	const endedToday = computed(() => !!(todayRecord.value && todayRecord.value.end))
+	const finishedToday = computed(() => startedToday.value && endedToday.value)
+
+	// 下一次该打哪种卡：start 签到 / end 签退（已签退时 end 表示"更新签退时间"）
+	const punchType = computed(() => (startedToday.value ? 'end' : 'start'))
+
+	// 签到最早 06:00；签退（含更新）在 18:00–次日 06:00 的业务时段内随时可打
+	const canPunch = computed(() => {
+		if (punchType.value === 'start' && beforeStart.value) return false
+		return true
+	})
+
+	// 跨零点签退标注"次日"
+	const endTimeLabel = (rec) => {
+		if (!rec || !rec.end) return ''
+		const nextDay = rec.end.timestamp && formatDate(new Date(rec.end.timestamp)) !== rec.date
+		return `${nextDay ? '次日 ' : ''}${rec.end.time}`
+	}
+
+	const todaySummary = computed(() => {
+		const rec = todayRecord.value
+		if (!rec) return ''
+		let text = `今日 ${rec.start.time} 签到${rec.start.late ? '（迟到）' : ''}`
+		text += rec.end ? ` · ${endTimeLabel(rec)} 签退${rec.end.early ? '（早退）' : ''}` : ' · 未签退'
+		return text
+	})
+
+	const todaySub = computed(() => {
+		const rec = todayRecord.value
+		if (!rec) return ''
+		const dist = `距离 ${formatDistance(rec.start.distance)}`
+		if (!rec.end) return dist
+		return `${dist} · 学习 ${formatDuration(rec.end.timestamp - rec.start.timestamp)}`
+	})
 
 	const distance = computed(() => getDistanceMeters(current.value, target.value))
 	const inRange = computed(() => distance.value !== null && distance.value <= RANGE)
@@ -186,36 +233,48 @@
 	})
 
 	const status = computed(() => {
-		if (checkedToday.value) return { type: 'success', text: '已打卡' }
+		const rec = todayRecord.value
+		if (rec && rec.end) {
+			const flags = []
+			if (rec.start.late) flags.push('迟到')
+			if (rec.end.early) flags.push('早退')
+			return flags.length ? { type: 'error', text: flags.join('·') } : { type: 'success', text: '已完成' }
+		}
 		if (locating.value) return { type: 'loading', text: '定位中' }
 		if (locationError.value) return { type: 'error', text: '定位失败' }
-		if (!current.value) return { type: 'warn', text: '待定位' }
-		if (inRange.value) return { type: 'success', text: '范围内' }
-		return { type: 'warn', text: '超出范围' }
+		if (!rec) return { type: 'warn', text: beforeStart.value ? '未到时间' : '未签到' }
+		return rec.start.late ? { type: 'error', text: '迟到' } : { type: 'success', text: '学习中' }
 	})
 
+	const ringActive = computed(
+		() => !locating.value && !locationError.value && !!current.value && inRange.value && canPunch.value
+	)
+
 	const btnSubText = computed(() => {
-		if (checkedToday.value) return '今日已完成'
 		if (locating.value) return '定位中...'
 		if (locationError.value) return '定位失败'
 		if (!current.value) return '待定位'
 		if (!inRange.value) return '不在范围'
-		return '点击打卡'
+		if (!canPunch.value) return '未到时间'
+		if (finishedToday.value) return '更新签退'
+		return punchType.value === 'end' ? '点击签退' : '点击签到'
 	})
 
+	const punchText = computed(() => (punchType.value === 'end' ? '签退' : '签到'))
+
 	const ringClass = computed(() => {
-		if (checkedToday.value) return 'done'
-		if (btnSubText.value === '点击打卡') return 'ready'
-		return 'disabled'
+		if (finishedToday.value) return 'done'
+		return ringActive.value ? 'ready' : 'disabled'
 	})
 
 	const tipText = computed(() => {
-		if (checkedToday.value) return '今日学习已打卡'
 		if (locating.value) return '正在定位...'
 		if (locationError.value) return '定位失败，请重试'
 		if (!current.value) return '等待获取位置'
 		if (!inRange.value) return `需进入 ${RANGE} 米范围内`
-		return '已到达打卡范围'
+		if (!canPunch.value) return '签到 06:00 开始'
+		if (finishedToday.value) return '已签退，可更新签退时间'
+		return punchType.value === 'end' ? '已可签退' : '已到达打卡范围'
 	})
 
 	const locate = async () => {
@@ -262,9 +321,8 @@
 
 	const doCheckIn = () => {
 		const now = new Date()
-		const record = {
-			id: `${now.getTime()}`,
-			date: formatDate(now),
+		const list = records.value.slice()
+		const punch = {
 			time: formatTime(now),
 			timestamp: now.getTime(),
 			latitude: current.value.latitude,
@@ -272,16 +330,47 @@
 			distance: distance.value === null ? 0 : Math.round(distance.value),
 			locationName: target.value ? target.value.name : '学习打卡点'
 		}
-		const list = [record, ...records.value]
+		const idx = list.findIndex((r) => r.date === todayStr.value)
+		let msg = ''
+		if (punchType.value === 'start') {
+			const late = isLate(now)
+			const record = {
+				id: `${now.getTime()}`,
+				date: todayStr.value,
+				start: { ...punch, late },
+				end: null
+			}
+			if (idx >= 0) list.splice(idx, 1, record)
+			else list.unshift(record)
+			msg = late ? '签到成功 · 迟到' : '签到成功'
+		} else {
+			if (idx < 0) return
+			const target = list[idx]
+			const early = isEarly(now, target.date)
+			list.splice(idx, 1, { ...target, end: { ...punch, early } })
+			if (target.end) msg = early ? '签退已更新 · 早退' : '签退时间已更新'
+			else msg = early ? '签退成功 · 早退' : '签退成功'
+		}
 		records.value = list
 		saveRecords(list)
 		vibrate()
-		uni.showToast({ title: '打卡成功', icon: 'success', duration: 1500 })
+		uni.showToast({ title: msg, icon: 'none', duration: 1500 })
 	}
 
+	const confirmUpdateEnd = () =>
+		new Promise((resolve) => {
+			uni.showModal({
+				title: '更新签退',
+				content: `当前签退 ${todayRecord.value.end.time}，确定更新为 ${formatTime(new Date())}？`,
+				confirmText: '更新',
+				success: (res) => resolve(!!res.confirm),
+				fail: () => resolve(false)
+			})
+		})
+
 	const handleCheckIn = async () => {
-		if (checkedToday.value) {
-			toast('今天已经打过卡啦')
+		if (!canPunch.value) {
+			toast('签到时间 06:00 开始')
 			return
 		}
 		if (locating.value) {
@@ -299,6 +388,7 @@
 			toast(`距离打卡点 ${formatDistance(distance.value)}，请靠近后打卡`)
 			return
 		}
+		if (finishedToday.value && !(await confirmUpdateEnd())) return
 		doCheckIn()
 	}
 
