@@ -295,7 +295,9 @@
 		} catch (e) {}
 		uni.showModal({
 			title: '定位失败',
-			content: `原因：${locationErrorMsg.value || '未知'}\n环境：${platform || '未知'}\n请依次确认：\n1. 已开启系统/浏览器定位权限\n2. H5 需 HTTPS 访问并配置地图 Key\n3. 微信小程序需真实 AppID 并允许位置\n4. App 需开启系统定位开关`,
+			content: `原因：${locationErrorMsg.value 
+                || '未知'}\n环境：${platform 
+                || '未知'}\n请依次确认：\n1. 已开启系统/浏览器定位权限\n2. H5 需 HTTPS 访问并配置地图 Key\n3. 微信小程序需真实 AppID 并允许位置\n4. App 需开启系统定位开关`,
 			confirmText: '去设置',
 			success: (res) => {
 				if (!res.confirm) return

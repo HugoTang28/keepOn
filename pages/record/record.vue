@@ -20,30 +20,34 @@
 
 		<!-- 按月分组 -->
 		<view v-for="group in groups" :key="group.key" class="group">
-			<view class="group-head">
-				<text class="group-title">{{ group.title }}</text>
-				<text class="group-count">共 {{ group.items.length }} 次</text>
+			<view class="group-head" @click="toggleGroup(group.key)">
+				<text class="group-title">{{ group.title }}——{{ group.items.length }} 次</text>
+				<view class="group-arrow">
+					<u-icon :name="isClosed(group.key) ? 'arrow-right' : 'arrow-down'" color="#98a2b3" size="18"></u-icon>
+				</view>
 			</view>
 
-			<view class="group-card">
+			<view v-if="!isClosed(group.key)" class="group-card">
 				<view v-for="item in group.items" :key="item.id" class="record">
-					<view class="record-dot" :class="{ warn: item.late || item.early }"></view>
+					<view class="record-dot" :class="{ warn: item.status === 'abnormal' }"></view>
 					<view class="record-date">
 						<text class="date-main">{{ item.monthDay }}</text>
 						<text class="date-sub">{{ item.weekday }}</text>
 					</view>
-					<view v-if="item.late || item.early" class="record-flags">
-						<text v-if="item.late" class="flag late">迟到</text>
-						<text v-if="item.early" class="flag early">早退</text>
+					<view v-if="item.status" class="record-flags">
+						<text class="flag" :class="item.status">{{ item.status === 'normal' ? '正常' : '异常' }}</text>
 					</view>
 					<view class="record-times">
-						<view class="time-row">
+						<view class="time-tags">
 							<text class="time-tag">签到</text>
-							<text class="time-value">{{ item.startTime }}</text>
+							<text v-if="item.endTime" class="time-tag">签退</text>
 						</view>
-						<view class="time-row">
-							<text class="time-tag">签退</text>
-							<text class="time-value" :class="{ pending: !item.endTime }">{{ item.endTime || '未签退' }}</text>
+						<view class="time-values">
+							<text class="time-value">{{ item.startTime }}</text>
+							<view class="time-value-row">
+								<text class="time-value">{{ item.endTime || '未签退' }}</text>
+								<text v-if="item.endNextDay" class="time-plus">+1</text>
+							</view>
 						</view>
 					</view>
 				</view>
@@ -64,10 +68,21 @@
 <script setup>
 	import { ref, computed } from 'vue'
 	import { onShow } from '@dcloudio/uni-app'
-	import { getRecords, calcStreak, formatDate, pad } from '@/utils/common'
+	import { getRecords, calcStreak, formatDate, getDutyDate, pad } from '@/utils/common'
 
 	const records = ref([])
 	const WEEK = ['日', '一', '二', '三', '四', '五', '六']
+
+	// 已折叠的月份（存月份 key，切页面时保留本次操作）
+	const closedKeys = ref([])
+	const isClosed = (key) => closedKeys.value.indexOf(key) >= 0
+	const toggleGroup = (key) => {
+		const list = closedKeys.value.slice()
+		const i = list.indexOf(key)
+		if (i >= 0) list.splice(i, 1)
+		else list.push(key)
+		closedKeys.value = list
+	}
 
 	const parseDate = (str) => {
 		const parts = String(str || '').split('-')
@@ -83,11 +98,17 @@
 		}
 	}
 
-	// 跨零点签退标注"次日"
-	const endLabel = (r) => {
-		if (!r.end) return ''
-		const nextDay = r.end.timestamp && formatDate(new Date(r.end.timestamp)) !== r.date
-		return `${nextDay ? '次日 ' : ''}${r.end.time}`
+	// 签退时间；跨零点时单独标记，由模板在右上角显示 "+1"
+	const endLabel = (r) => (r.end ? r.end.time : '')
+	const isNextDay = (r) => !!(r.end && r.end.timestamp && formatDate(new Date(r.end.timestamp)) !== r.date)
+
+	// 考勤标签：
+	// 1. 有签到、无签退：当天（含凌晨 0–6 点归属前一天）算进行中，不判定；已过期则异常
+	// 2. 签到签退齐全：无迟到/早退为正常，否则异常
+	const statusOf = (r) => {
+		if (!r.start) return ''
+		if (!r.end) return r.date === getDutyDate(new Date()) ? '' : 'abnormal'
+		return r.start.late || r.end.early ? 'abnormal' : 'normal'
 	}
 
 	const groups = computed(() => {
@@ -101,8 +122,8 @@
 				id: r.id,
 				startTime: r.start ? r.start.time : '--',
 				endTime: endLabel(r),
-				late: !!(r.start && r.start.late),
-				early: !!(r.end && r.end.early),
+				endNextDay: isNextDay(r),
+				status: statusOf(r),
 				monthDay: p.monthDay,
 				weekday: p.weekday
 			})
@@ -178,9 +199,13 @@
 
 		.group-head {
 			display: flex;
-			align-items: baseline;
+			align-items: center;
 			justify-content: space-between;
 			padding: 0 8rpx 16rpx;
+
+			&:active {
+				opacity: 0.7;
+			}
 
 			.group-title {
 				font-size: 26rpx;
@@ -189,14 +214,18 @@
 				color: #1f2d5e;
 			}
 
-			.group-count {
-				font-size: 21rpx;
-				color: #98a2b3;
+			.group-arrow {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 40rpx;
+				height: 40rpx;
+        transition: transform 0.22s ease;
 			}
 		}
 
 		.group-card {
-			padding: 4rpx 28rpx;
+			padding: 4rpx 34rpx;
 			border-radius: 28rpx;
 			background: #ffffff;
 			box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, 0.05);
@@ -216,18 +245,17 @@
 				height: 12rpx;
 				margin-right: 18rpx;
 				border-radius: 50%;
-				background: linear-gradient(135deg, #5b7cfa, #7c5cf6);
+				background-color: #12b76a;
 				flex-shrink: 0;
 
 				&.warn {
-					background: linear-gradient(135deg, #f79009, #f04438);
+					background-color: #f04438;
 				}
 			}
 
 			.record-flags {
 				display: flex;
-				flex-direction: column;
-				align-items: flex-end;
+				align-items: center;
 				margin-right: 18rpx;
 
 				.flag {
@@ -235,17 +263,14 @@
 					border-radius: 999rpx;
 					font-size: 19rpx;
 					line-height: 1.3;
+					white-space: nowrap;
 
-					& + .flag {
-						margin-top: 6rpx;
+					&.normal {
+						color: #12b76a;
+						background: rgba(18, 183, 106, 0.12);
 					}
 
-					&.late {
-						color: #f79009;
-						background: rgba(247, 144, 9, 0.12);
-					}
-
-					&.early {
+					&.abnormal {
 						color: #f04438;
 						background: rgba(240, 68, 56, 0.12);
 					}
@@ -254,35 +279,55 @@
 
 			.record-times {
 				display: flex;
-				flex-direction: column;
-				align-items: flex-end;
+				align-items: flex-start;
+				flex-shrink: 0;
 
-				.time-row {
+				.time-tags,
+				.time-values {
 					display: flex;
-					align-items: baseline;
+					flex-direction: column;
+					align-items: flex-end;
+				}
 
-					& + .time-row {
-						margin-top: 4rpx;
-					}
+				.time-tags {
+					margin-right: 14rpx;
 				}
 
 				.time-tag {
-					margin-right: 10rpx;
-					font-size: 19rpx;
+					height: 38rpx;
+					line-height: 38rpx;
+					font-size: 20rpx;
 					color: #98a2b3;
+
+					& + .time-tag {
+						margin-top: 6rpx;
+					}
 				}
 
 				.time-value {
+					height: 38rpx;
+					line-height: 38rpx;
 					font-size: 28rpx;
 					font-weight: 600;
 					color: #1f2d5e;
 					font-variant-numeric: tabular-nums;
 
-					&.pending {
-						font-size: 22rpx;
-						font-weight: 500;
-						color: #c4c9d4;
+					& + .time-value {
+						margin-top: 6rpx;
 					}
+				}
+
+				.time-value-row {
+					position: relative;
+					margin-top: 6rpx;
+				}
+				.time-plus {
+					position: absolute;
+					top: 2rpx;
+					right: -20rpx;
+					font-size: 18rpx;
+					line-height: 1;
+					color: #98a2b3;
 				}
 			}
 
