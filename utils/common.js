@@ -115,6 +115,26 @@ export const saveTarget = (target) => {
   })
 }
 
+// 登录用户（目前只存昵称与头像，用于"我的"页展示）
+export const USER_KEY = 'keepon_user'
+
+export const getUser = () => {
+  const u = uni.getStorageSync(USER_KEY)
+  if (!u || typeof u !== 'object') return { nickName: '', avatarUrl: '' }
+  return { nickName: u.nickName || '', avatarUrl: u.avatarUrl || '' }
+}
+
+export const saveUser = (user) => {
+  uni.setStorageSync(USER_KEY, {
+    nickName: user.nickName || '',
+    avatarUrl: user.avatarUrl || '',
+  })
+}
+
+export const clearUser = () => {
+  uni.removeStorageSync(USER_KEY)
+}
+
 // 连续打卡天数（今天未打卡时从昨天开始往前算）
 export const calcStreak = (list, base = new Date()) => {
   const set = new Set(list.map((r) => r.date))

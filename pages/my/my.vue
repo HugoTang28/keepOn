@@ -2,13 +2,17 @@
 	<view class="page">
 		<view class="content">
 			<!-- 顶部个人信息 -->
-			<view class="profile-card" @click="goLogin">
+			<view class="profile-card" @click="handleProfileTap">
 				<view class="avatar">
-					<u-icon name="account-fill" color="#ffffff" size="50"></u-icon>
+					<image v-if="user.avatarUrl" class="avatar-img" :src="user.avatarUrl" mode="aspectFill"></image>
+					<u-icon v-else name="account-fill" color="#ffffff" size="50"></u-icon>
 				</view>
 				<view class="profile-info">
-					<text class="login-text">未登录</text>
-					<text class="login-tip">点击登录以使用完整功能</text>
+					<text class="login-text">{{ user.nickName || '未登录' }}</text>
+					<text class="login-tip">{{ loginTip }}</text>
+				</view>
+				<view v-if="user.nickName" class="logout-btn" @click.stop="handleLogout">
+					<image class="logout-icon" src="/static/imgages/logout.png" mode="aspectFit"></image>
 				</view>
 			</view>
 
@@ -24,26 +28,113 @@
 			</view>
 
 		</view>
+
+		<!-- 微信头像昵称填写-->
+		<profile-sheet :show="showSheet" @close="showSheet = false" @confirm="onProfileConfirm" />
 	</view>
 </template>
 
 <script setup>
-	import { ref } from 'vue'
+	import { ref, computed } from 'vue'
 	import { onShow } from '@dcloudio/uni-app'
-	import { getTarget } from '@/utils/common'
+	import { getTarget, getUser, saveUser, clearUser, toast } from '@/utils/common'
+	import ProfileSheet from '@/components/my/profile-sheet.vue'
 
 	const targetName = ref(getTarget().name)
+	const user = ref(getUser())
+	const logging = ref(false)
+	const showSheet = ref(false)
+
+	const loginTip = computed(() => {
+		if (logging.value) return '正在唤起微信授权...'
+		return user.value.nickName ? '' : '点击使用微信登录'
+	})
 
 	const load = () => {
 		targetName.value = getTarget().name
+		user.value = getUser()
 	}
 
 	const goSetSite = () => {
 		uni.navigateTo({ url: '/pages/my/setSite/index' })
 	}
 
-	const goLogin = () => {
-		uni.navigateTo({ url: '/pages/login/login' })
+	// 微信登录：uni.login 建立会话，getUserProfile 取昵称头像
+	const weixinLogin = () =>
+		new Promise((resolve, reject) => {
+			uni.login({ provider: 'weixin', success: resolve, fail: reject })
+		})
+
+	const weixinProfile = () =>
+		new Promise((resolve, reject) => {
+			uni.getUserProfile({
+				desc: '用于在“我的”页展示昵称和头像',
+				success: (res) => resolve(res.userInfo || {}),
+				fail: reject
+			})
+		})
+
+	const applyUser = (nickName, avatarUrl = '') => {
+		try {
+			saveUser({ nickName, avatarUrl })
+			user.value = getUser()
+			toast('登录成功')
+		} catch (e) {
+			toast('保存失败，请重试')
+		}
+	}
+
+	// 组件内已处理头像选择与 base64 转换，这里只负责落库
+	const onProfileConfirm = ({ nickName, avatarUrl }) => {
+		applyUser(nickName, avatarUrl)
+		showSheet.value = false
+	}
+
+	const openSheet = () => {
+		showSheet.value = true
+	}
+
+	const logout = () => {
+		clearUser()
+		user.value = getUser()
+		toast('已退出登录')
+	}
+
+	const login = async () => {
+		if (logging.value) return
+		logging.value = true
+		try {
+			// #ifdef MP-WEIXIN
+			await weixinLogin()
+			const info = await weixinProfile()
+			const nickName = (info.nickName || '').trim()
+			// 微信对旧接口只会返回"微信用户"，这种情况改用官方昵称填写能力
+			if (nickName && nickName !== '微信用户') {
+				applyUser(nickName, info.avatarUrl || '')
+				return
+			}
+			openSheet()
+			return
+			// #endif
+		} catch (e) {
+			toast('已取消登录')
+		} finally {
+			logging.value = false
+		}
+	}
+
+	const handleProfileTap = () => {
+		if (!user.value.nickName) login()
+	}
+
+	const handleLogout = () => {
+		uni.showModal({
+			title: '退出登录',
+			content: '确定要退出当前账号吗？',
+			success: (res) => {
+				if (res.confirm) logout()
+			}
+		})
 	}
 
 	onShow(() => {
@@ -80,8 +171,13 @@
 					align-items: center;
 					justify-content: center;
 					flex-shrink: 0;
+					overflow: hidden;
           background: linear-gradient(135deg, #0f172a 0%, #1b2a4a 60%, #2f4b8f 100%);
-					box-shadow: 0 10rpx 22rpx rgba(79, 110, 247, 0.26);
+					.avatar-img {
+						width: 100%;
+						height: 100%;
+						display: block;
+					}
 				}
 
 				.profile-info {
@@ -101,6 +197,27 @@
 						margin-top: 20rpx;
 						font-size: 24rpx;
 						color: #98a2b3;
+					}
+				}
+
+				.logout-btn {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					flex-shrink: 0;
+					width: 72rpx;
+					height: 72rpx;
+					margin-left: auto;
+					border-radius: 50%;
+
+					&:active {
+						background: #f2f4f8;
+					}
+
+					.logout-icon {
+						width: 40rpx;
+						height: 40rpx;
+						opacity: 0.65;
 					}
 				}
 			}
@@ -163,4 +280,5 @@
 			}
 		}
 	}
+
 </style>
