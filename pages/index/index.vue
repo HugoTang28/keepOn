@@ -65,24 +65,6 @@
 				</text>
 			</view>
 
-			<!-- 数据概览 -->
-			<view class="card stats-card">
-				<view class="stat">
-					<text class="stat-num">{{ stats.streak }}</text>
-					<text class="stat-label">连续打卡</text>
-				</view>
-				<view class="stat-line"></view>
-				<view class="stat">
-					<text class="stat-num">{{ stats.month }}</text>
-					<text class="stat-label">本月打卡</text>
-				</view>
-				<view class="stat-line"></view>
-				<view class="stat">
-					<text class="stat-num">{{ stats.total }}</text>
-					<text class="stat-label">累计打卡</text>
-				</view>
-			</view>
-
 			<!-- 本周记录 -->
 			<view class="card week-card">
 				<view class="card-head">
@@ -118,7 +100,6 @@
 	import {
 		RANGE,
 		DEFAULT_TARGET,
-		pad,
 		formatDate,
 		formatTime,
 		formatDistance,
@@ -163,16 +144,9 @@
 		target.value = getTarget()
 	}
 
-	const stats = computed(() => {
-		const base = nowRef.value
-		const prefix = `${base.getFullYear()}-${pad(base.getMonth() + 1)}`
-		const month = records.value.filter((r) => typeof r.date === 'string' && r.date.indexOf(prefix) === 0).length
-		return {
-			total: records.value.length,
-			month,
-			streak: calcStreak(records.value, base)
-		}
-	})
+	const stats = computed(() => ({
+		streak: calcStreak(records.value, nowRef.value)
+	}))
 
 	const weekDays = computed(() => {
 		const base = nowRef.value
@@ -700,39 +674,6 @@
 					color: #f04438;
 					text-align: center;
 					line-height: 1.5;
-				}
-			}
-
-			/* 数据概览 */
-			.stats-card {
-				display: flex;
-				align-items: center;
-				padding: 26rpx 0;
-
-				.stat {
-					flex: 1;
-					display: flex;
-					flex-direction: column;
-					align-items: center;
-
-					.stat-num {
-						font-size: 42rpx;
-						font-weight: 700;
-						line-height: 1.1;
-						color: #1f2d5e;
-					}
-
-					.stat-label {
-						margin-top: 8rpx;
-						font-size: 21rpx;
-						color: #98a2b3;
-					}
-				}
-
-				.stat-line {
-					width: 1rpx;
-					height: 48rpx;
-					background: #f0f2f7;
 				}
 			}
 
