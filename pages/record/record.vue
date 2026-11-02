@@ -1,76 +1,87 @@
 <template>
 	<view class="page">
-		<!-- 数据概览 -->
-		<view v-if="records.length" class="summary">
-			<view class="summary-item">
-				<text class="summary-num">{{ stats.streak }}</text>
-				<text class="summary-label">连续打卡</text>
-			</view>
-			<view class="summary-line"></view>
-			<view class="summary-item">
-				<text class="summary-num">{{ stats.month }}</text>
-				<text class="summary-label">本月打卡</text>
-			</view>
-			<view class="summary-line"></view>
-			<view class="summary-item">
-				<text class="summary-num">{{ stats.total }}</text>
-				<text class="summary-label">累计打卡</text>
-			</view>
+		<!-- 未登录：引导去「我的」页登录 -->
+		<view v-if="!loggedIn" class="empty">
+			<text class="empty-title">登录后查看打卡记录</text>
+			<text class="empty-tip">请先登录账号，才能同步你的打卡记录</text>
+			<view class="empty-btn" @click="goMy">去登录</view>
 		</view>
 
-		<!-- 按月分组 -->
-		<view v-for="group in groups" :key="group.key" class="group">
-			<view class="group-head" @click="toggleGroup(group.key)">
-				<text class="group-title">{{ group.title }}——{{ group.items.length }} 次</text>
-				<view class="group-arrow">
-					<u-icon :name="isClosed(group.key) ? 'arrow-right' : 'arrow-down'" color="#98a2b3" size="18"></u-icon>
+		<template v-else>
+			<!-- 数据概览 -->
+			<view v-if="records.length" class="summary">
+				<view class="summary-item">
+					<text class="summary-num">{{ stats.streak }}</text>
+					<text class="summary-label">连续打卡</text>
+				</view>
+				<view class="summary-line"></view>
+				<view class="summary-item">
+					<text class="summary-num">{{ stats.month }}</text>
+					<text class="summary-label">本月打卡</text>
+				</view>
+				<view class="summary-line"></view>
+				<view class="summary-item">
+					<text class="summary-num">{{ stats.total }}</text>
+					<text class="summary-label">累计打卡</text>
 				</view>
 			</view>
 
-			<view v-if="!isClosed(group.key)" class="group-card">
-				<view v-for="item in group.items" :key="item.id" class="record">
-					<view class="record-dot" :class="{ warn: item.status === 'abnormal' }"></view>
-					<view class="record-date">
-						<text class="date-main">{{ item.monthDay }}</text>
-						<text class="date-sub">{{ item.weekday }}</text>
+			<!-- 按月分组 -->
+			<view v-for="group in groups" :key="group.key" class="group">
+				<view class="group-head" @click="toggleGroup(group.key)">
+					<text class="group-title">{{ group.title }}——{{ group.items.length }} 次</text>
+					<view class="group-arrow">
+						<u-icon :name="isClosed(group.key) ? 'arrow-right' : 'arrow-down'" color="#98a2b3" size="18"></u-icon>
 					</view>
-					<view v-if="item.status" class="record-flags">
-						<text class="flag" :class="item.status">{{ item.status === 'normal' ? '正常' : '异常' }}</text>
-					</view>
-					<view class="record-times">
-						<view class="time-tags">
-							<text class="time-tag">签到</text>
-							<text v-if="item.endTime" class="time-tag">签退</text>
+				</view>
+
+				<view v-if="!isClosed(group.key)" class="group-card">
+					<view v-for="item in group.items" :key="item.id" class="record">
+						<view class="record-dot" :class="{ warn: item.status === 'abnormal' }"></view>
+						<view class="record-date">
+							<text class="date-main">{{ item.monthDay }}</text>
+							<text class="date-sub">{{ item.weekday }}</text>
 						</view>
-						<view class="time-values">
-							<text class="time-value">{{ item.startTime }}</text>
-							<view class="time-value-row">
-								<text class="time-value">{{ item.endTime || '未签退' }}</text>
-								<text v-if="item.endNextDay" class="time-plus">+1</text>
+						<view v-if="item.status" class="record-flags">
+							<text class="flag" :class="item.status">{{ item.status === 'normal' ? '正常' : '异常' }}</text>
+						</view>
+						<view class="record-times">
+							<view class="time-tags">
+								<text class="time-tag">签到</text>
+								<text v-if="item.endTime" class="time-tag">签退</text>
+							</view>
+							<view class="time-values">
+								<text class="time-value">{{ item.startTime }}</text>
+								<view class="time-value-row">
+									<text class="time-value">{{ item.endTime || '未签退' }}</text>
+									<text v-if="item.endNextDay" class="time-plus">+1</text>
+								</view>
 							</view>
 						</view>
 					</view>
 				</view>
 			</view>
-		</view>
 
-		<!-- 空状态 -->
-		<view v-if="!records.length" class="empty">
-			<view class="empty-icon">
-				<u-icon name="calendar" color="#c4c9d4" size="38"></u-icon>
+			<!-- 空状态 -->
+			<view v-if="!records.length" class="empty">
+				<view class="empty-icon">
+					<u-icon name="calendar" color="#c4c9d4" size="38"></u-icon>
+				</view>
+				<text class="empty-title">还没有打卡记录</text>
+				<view class="empty-btn" @click="goHome">去打卡</view>
 			</view>
-			<text class="empty-title">还没有打卡记录</text>
-			<view class="empty-btn" @click="goHome">去打卡</view>
-		</view>
+		</template>
 	</view>
 </template>
 
 <script setup>
 	import { ref, computed } from 'vue'
 	import { onShow } from '@dcloudio/uni-app'
-	import { getRecords, calcStreak, formatDate, getDutyDate, isLateRecord, isEarlyRecord, pad } from '@/utils/common'
+	import { getRecords, getUser, calcStreak, formatDate, getDutyDate, isLateRecord, isEarlyRecord, pad } from '@/utils/common'
 
 	const records = ref([])
+	const user = ref(getUser())
+	const loggedIn = computed(() => !!user.value.nickName)
 	const WEEK = ['日', '一', '二', '三', '四', '五', '六']
 
 	// 已折叠的月份（存月份 key，切页面时保留本次操作）
@@ -147,6 +158,11 @@
 	})
 
 	const load = () => {
+		user.value = getUser()
+		if (!loggedIn.value) {
+			records.value = []
+			return
+		}
 		records.value = getRecords()
 			.filter((r) => r && r.date && r.start)
 			.sort((a, b) => (b.start.timestamp || 0) - (a.start.timestamp || 0))
@@ -154,6 +170,10 @@
 
 	const goHome = () => {
 		uni.switchTab({ url: '/pages/home/home' })
+	}
+
+	const goMy = () => {
+		uni.switchTab({ url: '/pages/my/my' })
 	}
 
 	onShow(() => {
@@ -379,6 +399,12 @@
 			font-size: 30rpx;
 			font-weight: 600;
 			color: #1f2d5e;
+		}
+
+		.empty-tip {
+			margin-top: 16rpx;
+			font-size: 24rpx;
+			color: #98a2b3;
 		}
 
 		.empty-btn {

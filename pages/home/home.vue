@@ -149,8 +149,9 @@
 	const beforeStart = computed(() => minutesOf(nowRef.value) < RULES.START_EARLIEST)
 	const loggedIn = computed(() => !!user.value.nickName)
 
+	// 未登录不读取记录，避免退出后仍显示上一个账号的打卡数据
 	const loadRecords = () => {
-		records.value = getRecords()
+		records.value = loggedIn.value ? getRecords() : []
 	}
 
 	const loadTarget = () => {
