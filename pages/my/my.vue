@@ -1,40 +1,49 @@
 <template>
 	<view class="page">
-		<view class="header">
-			<view class="avatar">坚</view>
-			<view class="user-info">
-				<text class="nickname">坚持号</text>
-				<text class="subtitle">每天进步一点点</text>
+		<view class="content">
+			<!-- 顶部个人信息 -->
+			<view class="profile-card" @click="goLogin">
+				<view class="avatar">
+					<u-icon name="account-fill" color="#ffffff" size="50"></u-icon>
+				</view>
+				<view class="profile-info">
+					<text class="login-text">未登录</text>
+					<text class="login-tip">点击登录以使用完整功能</text>
+				</view>
 			</view>
-		</view>
 
-		<view class="list-card">
-			<view class="list-item" @click="goSetSite">
-				<text class="item-icon">📍</text>
-				<text class="item-label">打卡点设置</text>
-				<text class="item-value">{{ targetName }}</text>
-				<view class="item-arrow"></view>
+			<view class="list-card">
+				<view class="list-item" @click="goSetSite">
+					<view class="item-icon">
+						<u-icon name="map-fill" color="#4f6ef7" size="18"></u-icon>
+					</view>
+					<text class="item-label">打卡点设置</text>
+					<text class="item-value">{{ targetName }}</text>
+					<view class="item-arrow"></view>
+				</view>
 			</view>
-		</view>
 
+		</view>
 	</view>
 </template>
 
 <script setup>
 	import { ref } from 'vue'
 	import { onShow } from '@dcloudio/uni-app'
-	import { getTarget, getRecords } from '@/utils/common'
+	import { getTarget } from '@/utils/common'
 
 	const targetName = ref(getTarget().name)
-	const total = ref(0)
 
 	const load = () => {
 		targetName.value = getTarget().name
-		total.value = getRecords().length
 	}
 
 	const goSetSite = () => {
 		uni.navigateTo({ url: '/pages/my/setSite/index' })
+	}
+
+	const goLogin = () => {
+		uni.navigateTo({ url: '/pages/login/login' })
 	}
 
 	onShow(() => {
@@ -46,99 +55,112 @@
 	.page {
 		min-height: 100vh;
 		background: #f5f6fa;
-		padding: 24rpx 28rpx 60rpx;
-	}
+		padding-bottom: 60rpx;
 
-	.header {
-		display: flex;
-		align-items: center;
-		padding: 36rpx 32rpx;
-		margin-bottom: 24rpx;
-		border-radius: 32rpx;
-		background: linear-gradient(135deg, #5b7cfa, #7c5cf6);
-		box-shadow: 0 14rpx 36rpx rgba(79, 110, 247, 0.25);
-	}
+		.content {
+			padding: 24rpx 28rpx 0;
+			.profile-card {
+				display: flex;
+				flex-direction: row;
+				align-items: center;
+				padding: 30rpx 32rpx;
+        background-color: #fff;
+        border-radius: 28rpx;
+				margin-bottom: 24rpx;
 
-	.avatar {
-		width: 96rpx;
-		height: 96rpx;
-		margin-right: 24rpx;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.24);
-		color: #ffffff;
-		font-size: 38rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
+				&:active {
+					opacity: 0.9;
+				}
 
-	.user-info {
-		display: flex;
-		flex-direction: column;
-	}
+				.avatar {
+					width: 140rpx;
+					height: 140rpx;
+					border-radius: 50%;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					flex-shrink: 0;
+					background: linear-gradient(140deg, #5b7cfa, #7c5cf6);
+					box-shadow: 0 10rpx 22rpx rgba(79, 110, 247, 0.26);
+				}
 
-	.nickname {
-		font-size: 34rpx;
-		font-weight: 600;
-		color: #ffffff;
-	}
+				.profile-info {
+					margin-left: 24rpx;
+					display: flex;
+					flex-direction: column;
+					align-items: flex-start;
 
-	.subtitle {
-		margin-top: 8rpx;
-		font-size: 24rpx;
-		color: rgba(255, 255, 255, 0.8);
-	}
+					.login-text {
+						font-size: 32rpx;
+						font-weight: 500;
+						letter-spacing: 1rpx;
+						color: #1f2d5e;
+					}
 
-	.list-card {
-		background: #ffffff;
-		border-radius: 28rpx;
-		padding: 0 32rpx;
-		box-shadow: 0 10rpx 36rpx rgba(31, 45, 94, 0.06);
-	}
+					.login-tip {
+						margin-top: 20rpx;
+						font-size: 24rpx;
+						color: #98a2b3;
+					}
+				}
+			}
+			.list-card {
+				padding: 0 28rpx;
+				border-radius: 28rpx;
+				background: #ffffff;
+				box-shadow: 0 10rpx 30rpx rgba(15, 23, 42, 0.05);
 
-	.list-item {
-		display: flex;
-		align-items: center;
-		padding: 32rpx 0;
+				.list-item {
+					display: flex;
+					align-items: center;
+					padding: 26rpx 0;
 
-		& + .list-item {
-			border-top: 1rpx solid #f0f2f7;
+					& + .list-item {
+						border-top: 1rpx solid #f4f6fa;
+					}
+
+					&:active {
+						opacity: 0.7;
+					}
+
+					.item-icon {
+						width: 64rpx;
+						height: 64rpx;
+						margin-right: 20rpx;
+						border-radius: 18rpx;
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						flex-shrink: 0;
+						background: #eef1fe;
+					}
+
+					.item-label {
+						flex: 1;
+						font-size: 28rpx;
+						color: #1f2d5e;
+					}
+
+					.item-value {
+						max-width: 300rpx;
+						margin-right: 14rpx;
+						font-size: 24rpx;
+						color: #98a2b3;
+						overflow: hidden;
+						text-overflow: ellipsis;
+						white-space: nowrap;
+					}
+
+					.item-arrow {
+						width: 14rpx;
+						height: 14rpx;
+						border-top: 3rpx solid #c4c9d4;
+						border-right: 3rpx solid #c4c9d4;
+						transform: rotate(45deg);
+						flex-shrink: 0;
+					}
+				}
+			}
 		}
-
-		&:active {
-			opacity: 0.7;
-		}
-	}
-
-	.item-icon {
-		width: 56rpx;
-		margin-right: 20rpx;
-		font-size: 38rpx;
-		line-height: 1;
-	}
-
-	.item-label {
-		flex: 1;
-		font-size: 29rpx;
-		color: #1f2d5e;
-	}
-
-	.item-value {
-		max-width: 300rpx;
-		margin-right: 16rpx;
-		font-size: 25rpx;
-		color: #98a2b3;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.item-arrow {
-		width: 16rpx;
-		height: 16rpx;
-		border-top: 3rpx solid #c4c9d4;
-		border-right: 3rpx solid #c4c9d4;
-		transform: rotate(45deg);
-		flex-shrink: 0;
 	}
 </style>

@@ -19,8 +19,7 @@
     {
       "path": "pages/my/my",
       "style": {
-        "navigationBarTitleText": "个人中心",
-        "navigationBarTextStyle": "black"
+        "navigationBarTitleText": ""
       }
     },
     {
@@ -32,7 +31,7 @@
     {
       "path": "pages/record/record",
       "style": {
-        "navigationBarTextStyle": "black"
+        "navigationBarTitleText": ""
       }
     },
     {
