@@ -187,11 +187,17 @@
 	const endedToday = computed(() => !!(todayRecord.value && todayRecord.value.end))
 	const finishedToday = computed(() => startedToday.value && endedToday.value)
 
-	// 下一次该打哪种卡：start 签到 / end 签退（已签退时 end 表示"更新签退时间"）
-	const punchType = computed(() => (startedToday.value ? 'end' : 'start'))
+	// 下一次该打哪种卡：start 签到 / end 签退 / '' 无（本次考勤已完成且不可再动）
+	// 当天已签退：当天（06:00 后）仍可更新签退时间；到了次日 0:00–6:00 就不再出现签退
+	const punchType = computed(() => {
+		if (!startedToday.value) return 'start'
+		if (!endedToday.value) return 'end'
+		return beforeStart.value ? '' : 'end'
+	})
 
 	// 签到最早 06:00；签退只要已签到即可随时打（18:00 前签退记早退，18:00 后为正常考勤）
 	const canPunch = computed(() => {
+		if (!punchType.value) return false
 		if (punchType.value === 'start' && beforeStart.value) return false
 		return true
 	})
@@ -243,12 +249,12 @@
 	)
 
 	const btnSubText = computed(() => {
+		if (!punchType.value) return '已完成'
 		if (locating.value) return '定位中...'
 		if (locationError.value) return '定位失败'
 		if (!current.value) return '待定位'
 		if (!inRange.value) return '不在范围'
 		if (!canPunch.value) return '未到时间'
-		// if (finishedToday.value) return '更新签退'
 		return punchType.value === 'end' ? '签退' : '签到'
 	})
 
@@ -260,6 +266,7 @@
 	})
 
 	const tipText = computed(() => {
+		if (!punchType.value) return '今日学习已完成'
 		if (locating.value) return '正在定位...'
 		if (locationError.value) return '定位失败，请重试'
 		if (!current.value) return '等待获取位置'
@@ -364,6 +371,10 @@
 	// 	})
 
 	const handleCheckIn = async () => {
+		if (!punchType.value) {
+			toast('今天已经完成签到和签退啦')
+			return
+		}
 		if (!canPunch.value) {
 			toast('签到时间 06:00 开始')
 			return
