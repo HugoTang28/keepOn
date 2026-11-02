@@ -17,7 +17,9 @@
       "delay": 0
     },
     /* 模块配置 */
-    "modules": {},
+    "modules": {
+      "Geolocation": {}
+    },
     /* 应用发布信息 */
     "distribute": {
       /* android打包配置 */
@@ -37,7 +39,9 @@
           "<uses-permission android:name=\"android.permission.WAKE_LOCK\"/>",
           "<uses-permission android:name=\"android.permission.FLASHLIGHT\"/>",
           "<uses-feature android:name=\"android.hardware.camera\"/>",
-          "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>"
+          "<uses-permission android:name=\"android.permission.WRITE_SETTINGS\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>",
+          "<uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\"/>"
         ]
       },
       /* ios打包配置 */
@@ -61,7 +65,15 @@
     },
     "usingComponents": true,
     "mergeVirtualHostAttributes": true,
-    "lazyCodeLoading": "requiredComponents"
+    "lazyCodeLoading": "requiredComponents",
+    "permission": {
+      "scope.userLocation": {
+        "desc": "用于学习打卡定位，判断是否到达打卡点"
+      }
+    },
+    "requiredPrivateInfos": [
+      "getLocation"
+    ]
   },
   "mp-alipay": {
     "usingComponents": true

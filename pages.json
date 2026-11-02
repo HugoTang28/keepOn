@@ -11,19 +11,37 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "坚持号"
+        "navigationBarTitleText": "坚持号",
+        "navigationBarBackgroundColor": "#4F6EF7",
+        "navigationBarTextStyle": "white"
       }
     },
     {
       "path": "pages/my/my",
       "style": {
-        "navigationBarTitleText": ""
+        "navigationBarTitleText": "个人中心",
+        "navigationBarBackgroundColor": "#4F6EF7",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/my/setSite/index",
+      "style": {
+        "navigationBarTitleText": "打卡点设置"
       }
     },
     {
       "path": "pages/record/record",
       "style": {
-        "navigationBarTitleText": ""
+        "navigationBarTitleText": "打卡记录",
+        "navigationBarBackgroundColor": "#4F6EF7",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录"
       }
     }
   ],
