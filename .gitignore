@@ -12,6 +12,7 @@ dist-ssr/
 logs/
 *.log
 
+unpackage/
 
 # Editor / IDE
 .vscode/*

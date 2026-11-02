@@ -1,9 +1,5 @@
 <template>
-	<view class="content">
-		<view class="text-area">
-			<text class="title">{{title}}</text>
-		</view>
-	</view>
+	首页
 </template>
 
 <script setup>
