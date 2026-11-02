@@ -80,7 +80,7 @@
 					align-items: center;
 					justify-content: center;
 					flex-shrink: 0;
-					background: linear-gradient(140deg, #5b7cfa, #7c5cf6);
+          background: linear-gradient(135deg, #0f172a 0%, #1b2a4a 60%, #2f4b8f 100%);
 					box-shadow: 0 10rpx 22rpx rgba(79, 110, 247, 0.26);
 				}
 

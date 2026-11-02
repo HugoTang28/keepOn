@@ -104,7 +104,7 @@
 	}
 
 	const goHome = () => {
-		uni.switchTab({ url: '/pages/index/index' })
+		uni.switchTab({ url: '/pages/home/home' })
 	}
 
 	onShow(() => {
@@ -118,8 +118,6 @@
 		background: #f5f6fa;
 		padding: 24rpx 28rpx 60rpx;
 	}
-
-	/* ---------- 概览 ---------- */
 	.summary {
 		display: flex;
 		align-items: center;
@@ -128,20 +126,17 @@
 		border-radius: 32rpx;
 		background: linear-gradient(135deg, #0f172a 0%, #1b2a4a 60%, #2f4b8f 100%);
 		box-shadow: 0 14rpx 34rpx rgba(15, 23, 42, 0.18);
-
 		.summary-item {
 			flex: 1;
 			display: flex;
 			flex-direction: column;
 			align-items: center;
-
 			.summary-num {
 				font-size: 44rpx;
 				font-weight: 700;
 				line-height: 1.1;
 				color: #ffffff;
 			}
-
 			.summary-label {
 				margin-top: 8rpx;
 				font-size: 21rpx;
@@ -155,8 +150,6 @@
 			background: rgba(255, 255, 255, 0.14);
 		}
 	}
-
-	/* ---------- 分组列表 ---------- */
 	.group {
 		margin-bottom: 28rpx;
 
