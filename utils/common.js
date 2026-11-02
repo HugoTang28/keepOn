@@ -104,15 +104,26 @@ export const normalizeRecord = (r) => {
   }
 }
 
-// 读取打卡记录（一条 = 一天：start 签到 / end 签退）
+// 打卡记录按账号隔离：keepon_checkin_records::<账号>
+export const recordKeyOf = (accountId) => `${RECORD_KEY}::${encodeURIComponent(accountId)}`
+
+// 读取当前账号的打卡记录（一条 = 一天：start 签到 / end 签退）
+// 未登录直接返回空，退出登录后不会再看到上一个账号的记录
 export const getRecords = () => {
-  const list = uni.getStorageSync(RECORD_KEY)
+  const account = getAccountId()
+  if (!account) return []
+
+  const list = uni.getStorageSync(recordKeyOf(account))
   if (!Array.isArray(list)) return []
   return list.map(normalizeRecord).filter(Boolean)
 }
 
+// 只写入当前账号；未登录不落库，返回 false
 export const saveRecords = (list) => {
-  uni.setStorageSync(RECORD_KEY, list)
+  const account = getAccountId()
+  if (!account) return false
+  uni.setStorageSync(recordKeyOf(account), list)
+  return true
 }
 
 // 读取打卡点，未设置时返回默认校区
@@ -144,6 +155,9 @@ export const getUser = () => {
   if (!u || typeof u !== 'object') return { nickName: '', avatarUrl: '' }
   return { nickName: u.nickName || '', avatarUrl: u.avatarUrl || '' }
 }
+
+// 当前登录账号标识（昵称即账号；未登录返回空串）
+export const getAccountId = () => getUser().nickName
 
 export const saveUser = (user) => {
   uni.setStorageSync(USER_KEY, {
