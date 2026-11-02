@@ -45,6 +45,27 @@ export const isLate = (d) => minutesOf(d) > RULES.START_LATEST
 export const isEarly = (d, dutyDate) =>
   formatDate(d) === dutyDate && minutesOf(d) < RULES.END_EARLIEST
 
+// "HH:mm" → 当日分钟数
+export const minutesOfTime = (t) => {
+  const [h, m] = String(t || '0:0').split(':')
+  return Number(h) * 60 + Number(m)
+}
+
+// 记录是否迟到：优先按签到时间重算，避免旧数据缺少/写错 late 字段
+export const isLateRecord = (r) => {
+  if (!r || !r.start) return false
+  if (r.start.time) return minutesOfTime(r.start.time) > RULES.START_LATEST
+  return !!r.start.late
+}
+
+// 记录是否早退：同样按签退时间重算；跨零点的签退不算早退
+export const isEarlyRecord = (r) => {
+  if (!r || !r.end) return false
+  if (r.end.timestamp && formatDate(new Date(r.end.timestamp)) !== r.date) return false
+  if (r.end.time) return minutesOfTime(r.end.time) < RULES.END_EARLIEST
+  return !!r.end.early
+}
+
 // 学习时长（毫秒 → 文本）
 export const formatDuration = (ms) => {
   if (!ms || ms < 0) return '--'

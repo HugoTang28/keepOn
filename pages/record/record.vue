@@ -68,7 +68,7 @@
 <script setup>
 	import { ref, computed } from 'vue'
 	import { onShow } from '@dcloudio/uni-app'
-	import { getRecords, calcStreak, formatDate, getDutyDate, pad } from '@/utils/common'
+	import { getRecords, calcStreak, formatDate, getDutyDate, isLateRecord, isEarlyRecord, pad } from '@/utils/common'
 
 	const records = ref([])
 	const WEEK = ['日', '一', '二', '三', '四', '五', '六']
@@ -103,12 +103,17 @@
 	const isNextDay = (r) => !!(r.end && r.end.timestamp && formatDate(new Date(r.end.timestamp)) !== r.date)
 
 	// 考勤标签：
-	// 1. 有签到、无签退：当天（含凌晨 0–6 点归属前一天）算进行中，不判定；已过期则异常
-	// 2. 签到签退齐全：无迟到/早退为正常，否则异常
+	// 1. 迟到判定不看签退：只要晚于 08:00 签到就是异常
+	// 2. 未签退：当天（含凌晨 0–6 点归属前一天）算进行中，不判定；已过期则异常
+	// 3. 签到签退齐全：无迟到/早退为正常，否则异常
 	const statusOf = (r) => {
 		if (!r.start) return ''
-		if (!r.end) return r.date === getDutyDate(new Date()) ? '' : 'abnormal'
-		return r.start.late || r.end.early ? 'abnormal' : 'normal'
+		const late = isLateRecord(r)
+		if (!r.end) {
+			if (late) return 'abnormal'
+			return r.date === getDutyDate(new Date()) ? '' : 'abnormal'
+		}
+		return late || isEarlyRecord(r) ? 'abnormal' : 'normal'
 	}
 
 	const groups = computed(() => {

@@ -34,7 +34,7 @@
 							<text class="card-sub">{{ target.name }}</text>
 						</view>
 					</view>
-					<view class="chip" :class="'chip-' + status.type">{{ status.text }}</view>
+					<view v-if="status" class="chip" :class="'chip-' + status.type">{{ status.text }}</view>
 				</view>
 
 				<view class="checkin-stage">
@@ -109,16 +109,20 @@
 		getDutyDate,
 		isLate,
 		isEarly,
+		isLateRecord,
+		isEarlyRecord,
 		toast,
 		getRecords,
 		saveRecords,
 		getTarget,
+		getUser,
 		calcStreak
 	} from '@/utils/common'
 	import { getCurrentLocation, getDistanceMeters, explainLocationError } from '@/utils/location'
 
 	const nowRef = ref(new Date())
 	const records = ref([])
+	const user = ref(getUser())
 	const target = ref({ ...DEFAULT_TARGET })
 	const current = ref(null)
 	const locating = ref(false)
@@ -143,6 +147,7 @@
 	// 当前考勤日（凌晨 0:00–06:00 的签退仍算前一天）
 	const todayStr = computed(() => getDutyDate(nowRef.value))
 	const beforeStart = computed(() => minutesOf(nowRef.value) < RULES.START_EARLIEST)
+	const loggedIn = computed(() => !!user.value.nickName)
 
 	const loadRecords = () => {
 		records.value = getRecords()
@@ -182,16 +187,21 @@
 
 	const weekDone = computed(() => weekDays.value.filter((d) => d.active).length)
 
-	const todayRecord = computed(() => records.value.find((r) => r.date === todayStr.value) || null)
-	const startedToday = computed(() => !!(todayRecord.value && todayRecord.value.start))
-	const endedToday = computed(() => !!(todayRecord.value && todayRecord.value.end))
-	const finishedToday = computed(() => startedToday.value && endedToday.value)
+	// 打卡用的记录：按考勤日取（凌晨 0–6 点仍算前一天，用于补签退）
+	const dutyRecord = computed(() => records.value.find((r) => r.date === todayStr.value) || null)
+	const startedDuty = computed(() => !!(dutyRecord.value && dutyRecord.value.start))
+	const endedDuty = computed(() => !!(dutyRecord.value && dutyRecord.value.end))
+
+	// 展示用的记录：只认自然日，凌晨时不会再把昨天的记录当成"今日"
+	const calendarToday = computed(() => formatDate(nowRef.value))
+	const todayRecord = computed(() => records.value.find((r) => r.date === calendarToday.value) || null)
+	const finishedToday = computed(() => !!(todayRecord.value && todayRecord.value.start && todayRecord.value.end))
 
 	// 下一次该打哪种卡：start 签到 / end 签退 / '' 无（本次考勤已完成且不可再动）
 	// 当天已签退：当天（06:00 后）仍可更新签退时间；到了次日 0:00–6:00 就不再出现签退
 	const punchType = computed(() => {
-		if (!startedToday.value) return 'start'
-		if (!endedToday.value) return 'end'
+		if (!startedDuty.value) return 'start'
+		if (!endedDuty.value) return 'end'
 		return beforeStart.value ? '' : 'end'
 	})
 
@@ -212,8 +222,8 @@
 	const todaySummary = computed(() => {
 		const rec = todayRecord.value
 		if (!rec) return ''
-		let text = `今日 ${rec.start.time} 签到${rec.start.late ? '（迟到）' : ''}`
-		text += rec.end ? ` · ${endTimeLabel(rec)} 签退${rec.end.early ? '（早退）' : ''}` : ' · 未签退'
+		let text = `今日 ${rec.start.time} 签到${isLateRecord(rec) ? '（迟到）' : ''}`
+		text += rec.end ? ` · ${endTimeLabel(rec)} 签退${isEarlyRecord(rec) ? '（早退）' : ''}` : ' · 未签退'
 		return text
 	})
 
@@ -234,14 +244,14 @@
 		const rec = todayRecord.value
 		if (rec && rec.end) {
 			const flags = []
-			if (rec.start.late) flags.push('迟到')
-			if (rec.end.early) flags.push('早退')
-			return flags.length ? { type: 'error', text: flags.join('·') } : { type: 'success', text: '已完成' }
+			if (isLateRecord(rec)) flags.push('迟到')
+			if (isEarlyRecord(rec)) flags.push('早退')
+			return flags.length ? { type: 'error', text: flags.join('·') } : null
 		}
 		if (locating.value) return { type: 'loading', text: '定位中' }
 		if (locationError.value) return { type: 'error', text: '定位失败' }
 		if (!rec) return { type: 'warn', text: beforeStart.value ? '未到时间' : '未签到' }
-		return rec.start.late ? { type: 'error', text: '迟到' } : { type: 'success', text: '学习中' }
+		return isLateRecord(rec) ? { type: 'error', text: '迟到' } : { type: 'success', text: '学习中' }
 	})
 
 	const ringActive = computed(
@@ -249,7 +259,7 @@
 	)
 
 	const btnSubText = computed(() => {
-		if (!punchType.value) return '已完成'
+		if (!loggedIn.value) return '登录后打卡'
 		if (locating.value) return '定位中...'
 		if (locationError.value) return '定位失败'
 		if (!current.value) return '待定位'
@@ -266,14 +276,12 @@
 	})
 
 	const tipText = computed(() => {
-		if (!punchType.value) return '今日学习已完成'
+		if (!loggedIn.value) return ''
 		if (locating.value) return '正在定位...'
 		if (locationError.value) return '定位失败，请重试'
 		if (!current.value) return '等待获取位置'
 		if (!inRange.value) return `需进入 ${RANGE} 米范围内`
 		if (!canPunch.value) return '签到 06:00 开始'
-		// if (finishedToday.value) return '已签退，可更新签退时间'
-		// if (punchType.value === 'end') return '已可签退'
 		return '已到达打卡范围'
 	})
 
@@ -370,9 +378,21 @@
 	// 		})
 	// 	})
 
+	// 未登录不允许打卡，引导去"我的"页登录
+	const promptLogin = () => {
+		uni.showModal({
+			title: '请先登录',
+			content: '登录后才能打卡，是否前往登录？',
+			confirmText: '去登录',
+			success: (res) => {
+				if (res.confirm) uni.switchTab({ url: '/pages/my/my' })
+			}
+		})
+	}
+
 	const handleCheckIn = async () => {
-		if (!punchType.value) {
-			toast('今天已经完成签到和签退啦')
+		if (!loggedIn.value) {
+			promptLogin()
 			return
 		}
 		if (!canPunch.value) {
@@ -394,15 +414,6 @@
 			toast(`距离打卡点 ${formatDistance(distance.value)}，请靠近后打卡`)
 			return
 		}
-		// const now = new Date()
-		// if (finishedToday.value) {
-		// 	const ok = await confirmModal(
-		// 		'更新签退',
-		// 		`当前签退 ${todayRecord.value.end.time}，确定更新为 ${formatTime(now)}？`,
-		// 		'更新'
-		// 	)
-		// 	if (!ok) return
-		// }
 		doCheckIn()
 	}
 
@@ -412,6 +423,7 @@
 
 	onShow(() => {
 		nowRef.value = new Date()
+		user.value = getUser()
 		loadRecords()
 		loadTarget()
 		if (!current.value && !locating.value) locate()
