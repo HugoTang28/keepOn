@@ -6,32 +6,43 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
-*.local
+unpackage/
+
+# HBuilderX local config
+.hbuilderx/
+
+# Generated share packages
+.trae-html-share-packages/
 
 # Logs
 logs/
 *.log
 
-unpackage/
-
 # Editor / IDE
 .vscode/*
 !.vscode/extensions.json
 .idea/
+*.iml
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
 
+# Signing certificates (never commit)
+*.keystore
+*.jks
+
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Env
 .env
 .env.*
 !.env.example
+*.local
 
 # Cache
 .cache/
