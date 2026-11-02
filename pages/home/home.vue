@@ -29,35 +29,36 @@
 				<view class="card-head">
 					<view class="head-left">
 						<text class="card-title">学习打卡点</text>
-						<text class="card-sub">{{ target.name }}</text>
+						<view class="head-site">
+							<u-icon name="map-fill" color="#98a2b3" size="12"></u-icon>
+							<text class="card-sub">{{ target.name }}</text>
+						</view>
 					</view>
 					<view class="chip" :class="'chip-' + status.type">{{ status.text }}</view>
 				</view>
 
-				<view class="checkin-main">
-					<view class="distance-block">
-						<view class="distance-value">
-							<text class="distance-num">{{ distanceMain }}</text>
-							<text class="distance-unit">{{ distanceUnit }}</text>
-						</view>
-						<text class="distance-label">距离打卡点</text>
-						<text class="distance-tip" :class="{ success: inRange }">{{ tipText }}</text>
-					</view>
-
+				<view class="checkin-stage">
 					<view class="checkin-ring" :class="ringClass">
 						<view class="checkin-inner" :class="ringClass" @click="handleCheckIn">
-							<u-icon v-if="finishedToday" class="checkin-icon" name="checkmark" color="#ffffff" size="28" :bold="true"></u-icon>
+							<u-icon v-if="finishedToday" name="checkmark" color="#ffffff" size="28" :bold="true"></u-icon>
 							<text v-else class="checkin-icon">{{ punchText }}</text>
 							<text class="checkin-text">{{ btnSubText }}</text>
 						</view>
 					</view>
+					<text class="stage-hint" :class="{ success: inRange && !locationError, error: locationError }">{{ tipText }}</text>
 				</view>
 
-				<view class="checkin-actions">
-					<view class="mini-btn" :class="{ disabled: locating }" @click="locate()">
-						{{ locating ? '定位中...' : '重新定位' }}
+				<view class="location-bar" :class="{ success: inRange && !locationError, error: locationError }">
+					<view class="loc-info">
+						<view class="loc-dot"></view>
+						<text class="loc-num">{{ distanceMain }}</text>
+						<text class="loc-unit">{{ distanceUnit }}</text>
+						<text class="loc-text">距离打卡点</text>
 					</view>
-					<view class="mini-btn" @click="goSetSite">更换打卡点</view>
+					<view class="loc-btn" :class="{ disabled: locating }" @click="locate()">
+						<u-icon name="reload" color="#4f6ef7" size="13"></u-icon>
+						<text class="loc-btn-text">{{ locating ? '定位中' : '重新定位' }}</text>
+					</view>
 				</view>
 
 				<text v-if="locationError" class="error-hint" @click="showLocationHelp">
@@ -87,7 +88,6 @@
 				<view class="today-line">
 					<text v-if="todayRecord" class="today-text">{{ todaySummary }}</text>
 					<text v-else class="today-text">{{ beforeStart ? '签到 06:00 开始，到点后到打卡点签到' : '今天还没有签到，到达打卡点后开启学习' }}</text>
-					<text v-if="todayRecord" class="today-sub">{{ todaySub }}</text>
 				</view>
 			</view>
 		</view>
@@ -190,7 +190,7 @@
 	// 下一次该打哪种卡：start 签到 / end 签退（已签退时 end 表示"更新签退时间"）
 	const punchType = computed(() => (startedToday.value ? 'end' : 'start'))
 
-	// 签到最早 06:00；签退（含更新）在 18:00–次日 06:00 的业务时段内随时可打
+	// 签到最早 06:00；签退只要已签到即可随时打（18:00 前签退记早退，18:00 后为正常考勤）
 	const canPunch = computed(() => {
 		if (punchType.value === 'start' && beforeStart.value) return false
 		return true
@@ -209,14 +209,6 @@
 		let text = `今日 ${rec.start.time} 签到${rec.start.late ? '（迟到）' : ''}`
 		text += rec.end ? ` · ${endTimeLabel(rec)} 签退${rec.end.early ? '（早退）' : ''}` : ' · 未签退'
 		return text
-	})
-
-	const todaySub = computed(() => {
-		const rec = todayRecord.value
-		if (!rec) return ''
-		const dist = `距离 ${formatDistance(rec.start.distance)}`
-		if (!rec.end) return dist
-		return `${dist} · 学习 ${formatDuration(rec.end.timestamp - rec.start.timestamp)}`
 	})
 
 	const distance = computed(() => getDistanceMeters(current.value, target.value))
@@ -256,8 +248,8 @@
 		if (!current.value) return '待定位'
 		if (!inRange.value) return '不在范围'
 		if (!canPunch.value) return '未到时间'
-		if (finishedToday.value) return '更新签退'
-		return punchType.value === 'end' ? '点击签退' : '点击签到'
+		// if (finishedToday.value) return '更新签退'
+		return punchType.value === 'end' ? '签退' : '签到'
 	})
 
 	const punchText = computed(() => (punchType.value === 'end' ? '签退' : '签到'))
@@ -273,8 +265,9 @@
 		if (!current.value) return '等待获取位置'
 		if (!inRange.value) return `需进入 ${RANGE} 米范围内`
 		if (!canPunch.value) return '签到 06:00 开始'
-		if (finishedToday.value) return '已签退，可更新签退时间'
-		return punchType.value === 'end' ? '已可签退' : '已到达打卡范围'
+		// if (finishedToday.value) return '已签退，可更新签退时间'
+		// if (punchType.value === 'end') return '已可签退'
+		return '已到达打卡范围'
 	})
 
 	const locate = async () => {
@@ -357,16 +350,16 @@
 		uni.showToast({ title: msg, icon: 'none', duration: 1500 })
 	}
 
-	const confirmUpdateEnd = () =>
-		new Promise((resolve) => {
-			uni.showModal({
-				title: '更新签退',
-				content: `当前签退 ${todayRecord.value.end.time}，确定更新为 ${formatTime(new Date())}？`,
-				confirmText: '更新',
-				success: (res) => resolve(!!res.confirm),
-				fail: () => resolve(false)
-			})
-		})
+	// const confirmModal = (title, content, confirmText = '确定') =>
+	// 	new Promise((resolve) => {
+	// 		uni.showModal({
+	// 			title,
+	// 			content,
+	// 			confirmText,
+	// 			success: (res) => resolve(!!res.confirm),
+	// 			fail: () => resolve(false)
+	// 		})
+	// 	})
 
 	const handleCheckIn = async () => {
 		if (!canPunch.value) {
@@ -388,16 +381,20 @@
 			toast(`距离打卡点 ${formatDistance(distance.value)}，请靠近后打卡`)
 			return
 		}
-		if (finishedToday.value && !(await confirmUpdateEnd())) return
+		// const now = new Date()
+		// if (finishedToday.value) {
+		// 	const ok = await confirmModal(
+		// 		'更新签退',
+		// 		`当前签退 ${todayRecord.value.end.time}，确定更新为 ${formatTime(now)}？`,
+		// 		'更新'
+		// 	)
+		// 	if (!ok) return
+		// }
 		doCheckIn()
 	}
 
 	const goRecord = () => {
 		uni.switchTab({ url: '/pages/record/record' })
-	}
-
-	const goSetSite = () => {
-		uni.navigateTo({ url: '/pages/my/setSite/index' })
 	}
 
 	onShow(() => {
@@ -553,12 +550,33 @@
 				.head-left {
 					display: flex;
 					flex-direction: column;
+					flex: 1;
 					min-width: 0;
+					margin-right: 16rpx;
 
 					.card-sub {
 						margin-top: 6rpx;
 						font-size: 23rpx;
 						color: #98a2b3;
+					}
+
+					.head-site {
+						display: flex;
+						align-items: center;
+						margin-top: 8rpx;
+						min-width: 0;
+
+						.card-sub {
+							display: block;
+							flex: 1;
+							margin-top: 0;
+							margin-left: 6rpx;
+							font-size: 22rpx;
+							color: #98a2b3;
+							overflow: hidden;
+							text-overflow: ellipsis;
+							white-space: nowrap;
+						}
 					}
 				}
 
@@ -608,54 +626,11 @@
 
 			/* 打卡主卡 */
 			.checkin-card {
-				.checkin-main {
+				.checkin-stage {
 					display: flex;
+					flex-direction: column;
 					align-items: center;
-					justify-content: space-between;
-					margin-top: 20rpx;
-
-					.distance-block {
-						flex: 1;
-						min-width: 0;
-						padding-right: 16rpx;
-
-						.distance-value {
-							display: flex;
-							align-items: baseline;
-
-							.distance-num {
-								font-size: 68rpx;
-								font-weight: 700;
-								line-height: 1;
-								letter-spacing: -2rpx;
-								color: #1f2d5e;
-							}
-
-							.distance-unit {
-								margin-left: 8rpx;
-								font-size: 24rpx;
-								color: #98a2b3;
-							}
-						}
-
-						.distance-label {
-							display: block;
-							margin-top: 10rpx;
-							font-size: 22rpx;
-							color: #98a2b3;
-						}
-
-						.distance-tip {
-							display: block;
-							margin-top: 12rpx;
-							font-size: 21rpx;
-							color: #f79009;
-
-							&.success {
-								color: #12b76a;
-							}
-						}
-					}
+					padding: 28rpx 0 0;
 
 					.checkin-ring {
 						position: relative;
@@ -729,22 +704,94 @@
 					}
 				}
 
-				.checkin-actions {
-					display: flex;
-					margin-top: 24rpx;
+				.stage-hint {
+					margin-top: 18rpx;
+					font-size: 22rpx;
+					text-align: center;
+					color: #98a2b3;
 
-					.mini-btn {
+					&.success {
+						color: #12b76a;
+					}
+
+					&.error {
+						color: #f04438;
+					}
+				}
+
+				.location-bar {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					margin-top: 24rpx;
+					padding: 14rpx 16rpx 14rpx 22rpx;
+					border-radius: 22rpx;
+					background: #f7f8fc;
+
+					.loc-info {
+						display: flex;
+						align-items: baseline;
 						flex: 1;
-						height: 64rpx;
-						line-height: 64rpx;
-						text-align: center;
+						min-width: 0;
+
+						.loc-dot {
+							width: 12rpx;
+							height: 12rpx;
+							margin-right: 12rpx;
+							border-radius: 50%;
+							flex-shrink: 0;
+							align-self: center;
+							background: #f79009;
+							transition: background 0.2s ease;
+						}
+
+						.loc-num {
+							font-size: 34rpx;
+							font-weight: 700;
+							line-height: 1.1;
+							color: #1f2d5e;
+							font-variant-numeric: tabular-nums;
+						}
+
+						.loc-unit {
+							margin-left: 4rpx;
+							font-size: 21rpx;
+							color: #98a2b3;
+						}
+
+						.loc-text {
+							margin-left: 10rpx;
+							font-size: 21rpx;
+							color: #98a2b3;
+							overflow: hidden;
+							text-overflow: ellipsis;
+							white-space: nowrap;
+						}
+					}
+
+					&.success .loc-dot {
+						background: #12b76a;
+					}
+
+					&.error .loc-dot {
+						background: #f04438;
+					}
+
+					.loc-btn {
+						display: flex;
+						align-items: center;
+						justify-content: center;
+						flex-shrink: 0;
+						min-height: 56rpx;
+						margin-left: 16rpx;
+						padding: 0 20rpx;
 						border-radius: 999rpx;
-						font-size: 23rpx;
-						color: #4f6ef7;
 						background: #eef1fe;
 
-						& + .mini-btn {
-							margin-left: 18rpx;
+						.loc-btn-text {
+							margin-left: 6rpx;
+							font-size: 21rpx;
+							color: #4f6ef7;
 						}
 
 						&.disabled {
