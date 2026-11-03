@@ -9,14 +9,14 @@ export const RULES = {
   START_EARLIEST: 6 * 60, // 06:00 起可签到
   START_LATEST: 8 * 60, // 08:00 之后签到记迟到
   END_EARLIEST: 18 * 60, // 18:00 之前签退记早退
-  END_LATEST: 6 * 60, // 次日 06:00 前可签退
+  END_LATEST: 6 * 60 // 次日 06:00 前可签退
 }
 
 // 默认打卡点
 export const DEFAULT_TARGET = {
   name: '仲恺农业工程学院(海珠校区)',
   latitude: 23.10753,
-  longitude: 113.28139,
+  longitude: 113.28139
 }
 
 export const pad = (n) => (n < 10 ? '0' + n : '' + n)
@@ -61,7 +61,9 @@ export const isLateRecord = (r) => {
 // 记录是否早退：同样按签退时间重算；跨零点的签退不算早退
 export const isEarlyRecord = (r) => {
   if (!r || !r.end) return false
-  if (r.end.timestamp && formatDate(new Date(r.end.timestamp)) !== r.date) return false
+  if (r.end.timestamp && formatDate(new Date(r.end.timestamp)) !== r.date)
+   
+    return false
   if (r.end.time) return minutesOfTime(r.end.time) < RULES.END_EARLIEST
   return !!r.end.early
 }
@@ -97,7 +99,7 @@ export const normalizeRecord = (r) => {
       timestamp: r.timestamp || 0,
       late: false,
       latitude: r.latitude,
-      longitude: r.longitude,
+      longitude: r.longitue,
       distance: r.distance,
     },
     end: null,
@@ -105,7 +107,9 @@ export const normalizeRecord = (r) => {
 }
 
 // 打卡记录按账号隔离：keepon_checkin_records::<账号>
-export const recordKeyOf = (accountId) => `${RECORD_KEY}::${encodeURIComponent(accountId)}`
+ 
+export const recordKeyOf = (accountId) =>
+  `${RECORD_KEY}::${encodeURIComponent(accountId)}`
 
 // 读取当前账号的打卡记录（一条 = 一天：start 签到 / end 签退）
 // 未登录直接返回空，退出登录后不会再看到上一个账号的记录
@@ -131,7 +135,7 @@ export const getTarget = () => {
   const t = uni.getStorageSync(TARGET_KEY)
   if (t && typeof t.latitude === 'number' && typeof t.longitude === 'number') {
     return {
-      name: t.name || DEFAULT_TARGET.name,
+      name: t.name || DEFAUL_TARGET.name,
       latitude: t.latitude,
       longitude: t.longitude,
     }
