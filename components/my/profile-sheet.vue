@@ -40,33 +40,33 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-import { toast } from '@/utils/common'
+import { ref, watch } from 'vue';
+import { toast } from '@/utils/common';
 
 const props = defineProps({
   show: {
     type: Boolean,
     default: false
   }
-})
+});
 
-const emit = defineEmits(['close', 'confirm'])
+const emit = defineEmits(['close', 'confirm']);
 
-const draft = ref({ nickName: '', avatarUrl: '' })
+const draft = ref({ nickName: '', avatarUrl: '' });
 
 // 每次打开都重置，避免上次填写的内容残留
 watch(
   () => props.show,
   (v) => {
-    if (v) draft.value = { nickName: '', avatarUrl: '' }
+    if (v) draft.value = { nickName: '', avatarUrl: '' };
   }
-)
+);
 
 // 微信头像选择（open-type="chooseAvatar"）
 const onChooseAvatar = (e) => {
-  const url = e && e.detail ? e.detail.avatarUrl : ''
-  if (url) draft.value = { ...draft.value, avatarUrl: url }
-}
+  const url = e && e.detail ? e.detail.avatarUrl : '';
+  if (url) draft.value = { ...draft.value, avatarUrl: url };
+};
 
 // 头像是微信返回的临时路径，转成 base64 才能长期保存
 const fileToBase64 = (filePath) =>
@@ -76,27 +76,27 @@ const fileToBase64 = (filePath) =>
       filePath,
       encoding: 'base64',
       success: (res) => {
-        const mime = /\.png$/i.test(filePath) ? 'image/png' : 'image/jpeg'
-        resolve(`data:${mime};base64,${res.data}`)
+        const mime = /\.png$/i.test(filePath) ? 'image/png' : 'image/jpeg';
+        resolve(`data:${mime};base64,${res.data}`);
       },
       fail: () => resolve(filePath)
-    })
+    });
     // #endif
     // #ifndef MP-WEIXIN
-    resolve(filePath)
+    resolve(filePath);
     // #endif
-  })
+  });
 
 const confirm = async () => {
-  const nickName = (draft.value.nickName || '').trim()
+  const nickName = (draft.value.nickName || '').trim();
   if (!nickName) {
-    toast('请输入昵称')
-    return
+    toast('请输入昵称');
+    return;
   }
-  const raw = draft.value.avatarUrl
-  const avatarUrl = raw ? await fileToBase64(raw) : ''
-  emit('confirm', { nickName, avatarUrl })
-}
+  const raw = draft.value.avatarUrl;
+  const avatarUrl = raw ? await fileToBase64(raw) : '';
+  emit('confirm', { nickName, avatarUrl });
+};
 </script>
 
 <style scoped lang="scss">

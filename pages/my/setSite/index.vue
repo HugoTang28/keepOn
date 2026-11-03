@@ -54,76 +54,76 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
-import { DEFAULT_TARGET, toast, getTarget, saveTarget } from '@/utils/common'
-import { getCurrentLocation, explainLocationError } from '@/utils/location'
+import { ref, reactive } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
+import { DEFAULT_TARGET, toast, getTarget, saveTarget } from '@/utils/common';
+import { getCurrentLocation, explainLocationError } from '@/utils/location';
 
-const form = reactive({ name: '', latitude: '', longitude: '' })
-const locating = ref(false)
+const form = reactive({ name: '', latitude: '', longitude: '' });
+const locating = ref(false);
 
 const fill = (t) => {
-  form.name = t.name
-  form.latitude = String(t.latitude)
-  form.longitude = String(t.longitude)
-}
+  form.name = t.name;
+  form.latitude = String(t.latitude);
+  form.longitude = String(t.longitude);
+};
 
 const load = () => {
-  fill(getTarget())
-}
+  fill(getTarget());
+};
 
 const resetForm = () => {
-  fill(DEFAULT_TARGET)
-  toast('已恢复默认，记得保存')
-}
+  fill(DEFAULT_TARGET);
+  toast('已恢复默认，记得保存');
+};
 
 const useCurrentLocation = async () => {
-  if (locating.value) return
-  locating.value = true
+  if (locating.value) return;
+  locating.value = true;
   try {
-    const pos = await getCurrentLocation()
-    form.latitude = String(pos.latitude.toFixed(6))
-    form.longitude = String(pos.longitude.toFixed(6))
-    toast('已填入当前位置')
+    const pos = await getCurrentLocation();
+    form.latitude = String(pos.latitude.toFixed(6));
+    form.longitude = String(pos.longitude.toFixed(6));
+    toast('已填入当前位置');
   } catch (e) {
-    console.warn('[setSite] 定位失败：', e)
-    toast(explainLocationError(e))
+    console.warn('[setSite] 定位失败：', e);
+    toast(explainLocationError(e));
   } finally {
-    locating.value = false
+    locating.value = false;
   }
-}
+};
 
 const goBack = () => {
   if (getCurrentPages().length > 1) {
-    setTimeout(() => uni.navigateBack(), 600)
+    setTimeout(() => uni.navigateBack(), 600);
   }
-}
+};
 
 const save = () => {
-  const name = (form.name || '').trim()
-  const lat = Number(form.latitude)
-  const lng = Number(form.longitude)
+  const name = (form.name || '').trim();
+  const lat = Number(form.latitude);
+  const lng = Number(form.longitude);
   if (!name) {
-    toast('请填写打卡点名称')
-    return
+    toast('请填写打卡点名称');
+    return;
   }
   if (!form.latitude || !isFinite(lat) || lat < -90 || lat > 90) {
-    toast('纬度格式不正确')
-    return
+    toast('纬度格式不正确');
+    return;
   }
   if (!form.longitude || !isFinite(lng) || lng < -180 || lng > 180) {
-    toast('经度格式不正确')
-    return
+    toast('经度格式不正确');
+    return;
   }
-  saveTarget({ name, latitude: lat, longitude: lng })
-  fill({ name, latitude: lat, longitude: lng })
-  toast('保存成功')
-  goBack()
-}
+  saveTarget({ name, latitude: lat, longitude: lng });
+  fill({ name, latitude: lat, longitude: lng });
+  toast('保存成功');
+  goBack();
+};
 
 onShow(() => {
-  load()
-})
+  load();
+});
 </script>
 
 <style scoped lang="scss">

@@ -86,8 +86,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import {
   getRecords,
   getUser,
@@ -97,67 +97,67 @@ import {
   isLateRecord,
   isEarlyRecord,
   pad
-} from '@/utils/common'
+} from '@/utils/common';
 
-const records = ref([])
-const user = ref(getUser())
-const loggedIn = computed(() => !!user.value.nickName)
-const WEEK = ['日', '一', '二', '三', '四', '五', '六']
+const records = ref([]);
+const user = ref(getUser());
+const loggedIn = computed(() => !!user.value.nickName);
+const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
 
 // 已折叠的月份（存月份 key，切页面时保留本次操作）
-const closedKeys = ref([])
-const isClosed = (key) => closedKeys.value.indexOf(key) >= 0
+const closedKeys = ref([]);
+const isClosed = (key) => closedKeys.value.indexOf(key) >= 0;
 const toggleGroup = (key) => {
-  const list = closedKeys.value.slice()
-  const i = list.indexOf(key)
-  if (i >= 0) list.splice(i, 1)
-  else list.push(key)
-  closedKeys.value = list
-}
+  const list = closedKeys.value.slice();
+  const i = list.indexOf(key);
+  if (i >= 0) list.splice(i, 1);
+  else list.push(key);
+  closedKeys.value = list;
+};
 
 const parseDate = (str) => {
-  const parts = String(str || '').split('-')
-  const y = Number(parts[0])
-  const m = Number(parts[1])
-  const d = Number(parts[2])
-  const date = new Date(y, (m || 1) - 1, d || 1)
+  const parts = String(str || '').split('-');
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  const date = new Date(y, (m || 1) - 1, d || 1);
   return {
     monthDay: `${m}月${pad(d)}日`,
     weekday: `星期${WEEK[date.getDay()]}`,
     monthKey: `${y}-${pad(m)}`,
     monthTitle: `${y}年${m}月`
-  }
-}
+  };
+};
 
 // 签退时间；跨零点时单独标记，由模板在右上角显示 "+1"
-const endLabel = (r) => (r.end ? r.end.time : '')
+const endLabel = (r) => (r.end ? r.end.time : '');
 const isNextDay = (r) =>
   !!(
     r.end &&
     r.end.timestamp &&
     formatDate(new Date(r.end.timestamp)) !== r.date
-  )
+  );
 
 // 考勤标签：
 // 1. 迟到判定不看签退：只要晚于 08:00 签到就是异常
 // 2. 未签退：当天（含凌晨 0–6 点归属前一天）算进行中，不判定；已过期则异常
 // 3. 签到签退齐全：无迟到/早退为正常，否则异常
 const statusOf = (r) => {
-  if (!r.start) return ''
-  const late = isLateRecord(r)
+  if (!r.start) return '';
+  const late = isLateRecord(r);
   if (!r.end) {
-    if (late) return 'abnormal'
-    return r.date === getDutyDate(new Date()) ? '' : 'abnormal'
+    if (late) return 'abnormal';
+    return r.date === getDutyDate(new Date()) ? '' : 'abnormal';
   }
-  return late || isEarlyRecord(r) ? 'abnormal' : 'normal'
-}
+  return late || isEarlyRecord(r) ? 'abnormal' : 'normal';
+};
 
 const groups = computed(() => {
-  const map = new Map()
+  const map = new Map();
   records.value.forEach((r) => {
-    const p = parseDate(r.date)
+    const p = parseDate(r.date);
     if (!map.has(p.monthKey)) {
-      map.set(p.monthKey, { key: p.monthKey, title: p.monthTitle, items: [] })
+      map.set(p.monthKey, { key: p.monthKey, title: p.monthTitle, items: [] });
     }
     map.get(p.monthKey).items.push({
       id: r.id,
@@ -167,45 +167,45 @@ const groups = computed(() => {
       status: statusOf(r),
       monthDay: p.monthDay,
       weekday: p.weekday
-    })
-  })
-  return Array.from(map.values())
-})
+    });
+  });
+  return Array.from(map.values());
+});
 
 const stats = computed(() => {
-  const now = new Date()
-  const prefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`
+  const now = new Date();
+  const prefix = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
   return {
     total: records.value.length,
     month: records.value.filter(
       (r) => typeof r.date === 'string' && r.date.indexOf(prefix) === 0
     ).length,
     streak: calcStreak(records.value, now)
-  }
-})
+  };
+});
 
 const load = () => {
-  user.value = getUser()
+  user.value = getUser();
   if (!loggedIn.value) {
-    records.value = []
-    return
+    records.value = [];
+    return;
   }
   records.value = getRecords()
     .filter((r) => r && r.date && r.start)
-    .sort((a, b) => (b.start.timestamp || 0) - (a.start.timestamp || 0))
-}
+    .sort((a, b) => (b.start.timestamp || 0) - (a.start.timestamp || 0));
+};
 
 const goHome = () => {
-  uni.switchTab({ url: '/pages/home/home' })
-}
+  uni.switchTab({ url: '/pages/home/home' });
+};
 
 const goMy = () => {
-  uni.switchTab({ url: '/pages/my/my' })
-}
+  uni.switchTab({ url: '/pages/my/my' });
+};
 
 onShow(() => {
-  load()
-})
+  load();
+});
 </script>
 
 <style scoped lang="scss">

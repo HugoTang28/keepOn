@@ -138,8 +138,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue';
+import { onShow } from '@dcloudio/uni-app';
 import {
   RANGE,
   RULES,
@@ -160,168 +160,168 @@ import {
   getTarget,
   getUser,
   calcStreak
-} from '@/utils/common'
+} from '@/utils/common';
 import {
   getCurrentLocation,
   getDistanceMeters,
   explainLocationError
-} from '@/utils/location'
+} from '@/utils/location';
 
-const nowRef = ref(new Date())
-const records = ref([])
-const user = ref(getUser())
-const target = ref({ ...DEFAULT_TARGET })
-const current = ref(null)
-const locating = ref(false)
-const locationError = ref(false)
-const locationErrorMsg = ref('')
+const nowRef = ref(new Date());
+const records = ref([]);
+const user = ref(getUser());
+const target = ref({ ...DEFAULT_TARGET });
+const current = ref(null);
+const locating = ref(false);
+const locationError = ref(false);
+const locationErrorMsg = ref('');
 
 const greeting = computed(() => {
-  const h = nowRef.value.getHours()
-  if (h < 6) return '夜深了，注意休息'
-  if (h < 12) return '早上好，开始学习吧'
-  if (h < 14) return '中午好，别忘了打卡'
-  if (h < 18) return '下午好，保持专注'
-  return '晚上好，坚持一下'
-})
+  const h = nowRef.value.getHours();
+  if (h < 6) return '夜深了，注意休息';
+  if (h < 12) return '早上好，开始学习吧';
+  if (h < 14) return '中午好，别忘了打卡';
+  if (h < 18) return '下午好，保持专注';
+  return '晚上好，坚持一下';
+});
 
 const dateText = computed(() => {
-  const d = nowRef.value
-  const week = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()]
-  return `${d.getMonth() + 1}月${d.getDate()}日 星期${week}`
-})
+  const d = nowRef.value;
+  const week = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+  return `${d.getMonth() + 1}月${d.getDate()}日 星期${week}`;
+});
 
 // 当前考勤日（凌晨 0:00–06:00 的签退仍算前一天）
-const todayStr = computed(() => getDutyDate(nowRef.value))
+const todayStr = computed(() => getDutyDate(nowRef.value));
 const beforeStart = computed(
   () => minutesOf(nowRef.value) < RULES.START_EARLIEST
-)
-const loggedIn = computed(() => !!user.value.nickName)
+);
+const loggedIn = computed(() => !!user.value.nickName);
 
 // 未登录不读取记录，避免退出后仍显示上一个账号的打卡数据
 const loadRecords = () => {
-  records.value = loggedIn.value ? getRecords() : []
-}
+  records.value = loggedIn.value ? getRecords() : [];
+};
 
 const loadTarget = () => {
-  target.value = getTarget()
-}
+  target.value = getTarget();
+};
 
 const stats = computed(() => ({
   streak: calcStreak(records.value, nowRef.value)
-}))
+}));
 
 const weekDays = computed(() => {
-  const base = nowRef.value
-  const set = new Set(records.value.map((r) => r.date))
-  const labels = ['日', '一', '二', '三', '四', '五', '六']
-  const todayKey = formatDate(base)
+  const base = nowRef.value;
+  const set = new Set(records.value.map((r) => r.date));
+  const labels = ['日', '一', '二', '三', '四', '五', '六'];
+  const todayKey = formatDate(base);
   // 本周一
-  const monday = new Date(base)
-  const weekday = monday.getDay() === 0 ? 7 : monday.getDay()
-  monday.setDate(monday.getDate() - (weekday - 1))
-  const list = []
+  const monday = new Date(base);
+  const weekday = monday.getDay() === 0 ? 7 : monday.getDay();
+  monday.setDate(monday.getDate() - (weekday - 1));
+  const list = [];
   for (let i = 0; i < 7; i++) {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    const key = formatDate(d)
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const key = formatDate(d);
     list.push({
       date: key,
       label: key === todayKey ? '今' : labels[d.getDay()],
       active: set.has(key),
       isToday: key === todayKey
-    })
+    });
   }
-  return list
-})
+  return list;
+});
 
-const weekDone = computed(() => weekDays.value.filter((d) => d.active).length)
+const weekDone = computed(() => weekDays.value.filter((d) => d.active).length);
 
 // 打卡用的记录：按考勤日取（凌晨 0–6 点仍算前一天，用于补签退）
 const dutyRecord = computed(
   () => records.value.find((r) => r.date === todayStr.value) || null
-)
+);
 const startedDuty = computed(
   () => !!(dutyRecord.value && dutyRecord.value.start)
-)
-const endedDuty = computed(() => !!(dutyRecord.value && dutyRecord.value.end))
+);
+const endedDuty = computed(() => !!(dutyRecord.value && dutyRecord.value.end));
 
 // 展示用的记录：只认自然日，凌晨时不会再把昨天的记录当成"今日"
-const calendarToday = computed(() => formatDate(nowRef.value))
+const calendarToday = computed(() => formatDate(nowRef.value));
 const todayRecord = computed(
   () => records.value.find((r) => r.date === calendarToday.value) || null
-)
+);
 const finishedToday = computed(
   () =>
     !!(todayRecord.value && todayRecord.value.start && todayRecord.value.end)
-)
+);
 
 // 下一次该打哪种卡：start 签到 / end 签退 / '' 无（本次考勤已完成且不可再动）
 // 当天已签退：当天（06:00 后）仍可更新签退时间；到了次日 0:00–6:00 就不再出现签退
 const punchType = computed(() => {
-  if (!startedDuty.value) return 'start'
-  if (!endedDuty.value) return 'end'
-  return beforeStart.value ? '' : 'end'
-})
+  if (!startedDuty.value) return 'start';
+  if (!endedDuty.value) return 'end';
+  return beforeStart.value ? '' : 'end';
+});
 
 // 签到最早 06:00；签退只要已签到即可随时打（18:00 前签退记早退，18:00 后为正常考勤）
 const canPunch = computed(() => {
-  if (!punchType.value) return false
-  if (punchType.value === 'start' && beforeStart.value) return false
-  return true
-})
+  if (!punchType.value) return false;
+  if (punchType.value === 'start' && beforeStart.value) return false;
+  return true;
+});
 
 // 跨零点签退标注"次日"
 const endTimeLabel = (rec) => {
-  if (!rec || !rec.end) return ''
+  if (!rec || !rec.end) return '';
   const nextDay =
-    rec.end.timestamp && formatDate(new Date(rec.end.timestamp)) !== rec.date
-  return `${nextDay ? '次日 ' : ''}${rec.end.time}`
-}
+    rec.end.timestamp && formatDate(new Date(rec.end.timestamp)) !== rec.date;
+  return `${nextDay ? '次日 ' : ''}${rec.end.time}`;
+};
 
 const todaySummary = computed(() => {
-  const rec = todayRecord.value
-  if (!rec) return ''
-  let text = `今日 ${rec.start.time} 签到${isLateRecord(rec) ? '（迟到）' : ''}`
+  const rec = todayRecord.value;
+  if (!rec) return '';
+  let text = `今日 ${rec.start.time} 签到${isLateRecord(rec) ? '（迟到）' : ''}`;
   text += rec.end
     ? ` · ${endTimeLabel(rec)} 签退${isEarlyRecord(rec) ? '（早退）' : ''}`
-    : ' · 未签退'
-  return text
-})
+    : ' · 未签退';
+  return text;
+});
 
-const distance = computed(() => getDistanceMeters(current.value, target.value))
+const distance = computed(() => getDistanceMeters(current.value, target.value));
 const inRange = computed(
   () => distance.value !== null && distance.value <= RANGE
-)
+);
 
 const distanceMain = computed(() => {
-  if (distance.value === null) return '--'
+  if (distance.value === null) return '--';
   return distance.value < 1000
     ? `${Math.max(1, Math.round(distance.value))}`
-    : (distance.value / 1000).toFixed(2)
-})
+    : (distance.value / 1000).toFixed(2);
+});
 
 const distanceUnit = computed(() => {
-  if (distance.value === null) return ''
-  return distance.value < 1000 ? 'm' : 'km'
-})
+  if (distance.value === null) return '';
+  return distance.value < 1000 ? 'm' : 'km';
+});
 
 const status = computed(() => {
-  const rec = todayRecord.value
+  const rec = todayRecord.value;
   if (rec && rec.end) {
-    const flags = []
-    if (isLateRecord(rec)) flags.push('迟到')
-    if (isEarlyRecord(rec)) flags.push('早退')
-    return flags.length ? { type: 'error', text: flags.join('·') } : null
+    const flags = [];
+    if (isLateRecord(rec)) flags.push('迟到');
+    if (isEarlyRecord(rec)) flags.push('早退');
+    return flags.length ? { type: 'error', text: flags.join('·') } : null;
   }
-  if (locating.value) return { type: 'loading', text: '定位中' }
-  if (locationError.value) return { type: 'error', text: '定位失败' }
+  if (locating.value) return { type: 'loading', text: '定位中' };
+  if (locationError.value) return { type: 'error', text: '定位失败' };
   if (!rec)
-    return { type: 'warn', text: beforeStart.value ? '未到时间' : '未签到' }
+    return { type: 'warn', text: beforeStart.value ? '未到时间' : '未签到' };
   return isLateRecord(rec)
     ? { type: 'error', text: '迟到' }
-    : { type: 'success', text: '学习中' }
-})
+    : { type: 'success', text: '学习中' };
+});
 
 const ringActive = computed(
   () =>
@@ -330,57 +330,57 @@ const ringActive = computed(
     !!current.value &&
     inRange.value &&
     canPunch.value
-)
+);
 
 const btnSubText = computed(() => {
-  if (!loggedIn.value) return '登录后打卡'
-  if (locating.value) return '定位中...'
-  if (locationError.value) return '定位失败'
-  if (!current.value) return '待定位'
-  if (!inRange.value) return '不在范围'
-  if (!canPunch.value) return '未到时间'
-  // return punchType.value === 'end' ? '签退' : '签到'
-})
+  if (!loggedIn.value) return '登录后打卡';
+  if (locating.value) return '定位中...';
+  if (locationError.value) return '定位失败';
+  if (!current.value) return '待定位';
+  if (!inRange.value) return '不在范围';
+  if (!canPunch.value) return '未到时间';
+  return '';
+});
 
-const punchText = computed(() => (punchType.value === 'end' ? '签退' : '签到'))
+const punchText = computed(() => (punchType.value === 'end' ? '签退' : '签到'));
 
 const ringClass = computed(() => {
-  if (finishedToday.value) return 'done'
-  return ringActive.value ? 'ready' : 'disabled'
-})
+  if (finishedToday.value) return 'done';
+  return ringActive.value ? 'ready' : 'disabled';
+});
 
 const tipText = computed(() => {
-  if (!loggedIn.value) return ''
-  if (locating.value) return '正在定位...'
-  if (locationError.value) return '定位失败，请重试'
-  if (!current.value) return '等待获取位置'
-  if (!inRange.value) return `需进入 ${RANGE} 米范围内`
-  if (!canPunch.value) return '签到 06:00 开始'
-  return '已到达打卡范围'
-})
+  if (!loggedIn.value) return '';
+  if (locating.value) return '正在定位...';
+  if (locationError.value) return '定位失败，请重试';
+  if (!current.value) return '等待获取位置';
+  if (!inRange.value) return `需进入 ${RANGE} 米范围内`;
+  if (!canPunch.value) return '签到 06:00 开始';
+  return '已到达打卡范围';
+});
 
 const locate = async () => {
-  if (locating.value) return
-  locating.value = true
-  locationError.value = false
-  locationErrorMsg.value = ''
+  if (locating.value) return;
+  locating.value = true;
+  locationError.value = false;
+  locationErrorMsg.value = '';
   try {
-    current.value = await getCurrentLocation()
+    current.value = await getCurrentLocation();
   } catch (e) {
-    current.value = null
-    locationError.value = true
-    locationErrorMsg.value = explainLocationError(e)
-    toast(locationErrorMsg.value)
+    current.value = null;
+    locationError.value = true;
+    locationErrorMsg.value = explainLocationError(e);
+    toast(locationErrorMsg.value);
   } finally {
-    locating.value = false
+    locating.value = false;
   }
-}
+};
 
 const showLocationHelp = () => {
-  let platform = ''
+  let platform = '';
   try {
-    const sys = uni.getSystemInfoSync()
-    platform = `${sys.uniPlatform || ''} ${sys.osName || ''}`.trim()
+    const sys = uni.getSystemInfoSync();
+    platform = `${sys.uniPlatform || ''} ${sys.osName || ''}`.trim();
   } catch (e) {}
   uni.showModal({
     title: '定位失败',
@@ -389,23 +389,23 @@ const showLocationHelp = () => {
     }\n请依次确认：\n1. 已开启系统/浏览器定位权限\n2. H5 需 HTTPS 访问并配置地图 Key\n3. 微信小程序需真实 AppID 并允许位置\n4. App 需开启系统定位开关`,
     confirmText: '去设置',
     success: (res) => {
-      if (!res.confirm) return
+      if (!res.confirm) return;
       try {
-        uni.openSetting({ fail: () => {} })
+        uni.openSetting({ fail: () => {} });
       } catch (e) {}
     }
-  })
-}
+  });
+};
 
 const vibrate = () => {
   try {
-    uni.vibrateShort({ fail: () => {} })
+    uni.vibrateShort({ fail: () => {} });
   } catch (e) {}
-}
+};
 
 const doCheckIn = () => {
-  const now = new Date()
-  const list = records.value.slice()
+  const now = new Date();
+  const list = records.value.slice();
   const punch = {
     time: formatTime(now),
     timestamp: now.getTime(),
@@ -413,33 +413,33 @@ const doCheckIn = () => {
     longitude: current.value.longitude,
     distance: distance.value === null ? 0 : Math.round(distance.value),
     locationName: target.value ? target.value.name : '学习打卡点'
-  }
-  const idx = list.findIndex((r) => r.date === todayStr.value)
-  let msg = ''
+  };
+  const idx = list.findIndex((r) => r.date === todayStr.value);
+  let msg = '';
   if (punchType.value === 'start') {
-    const late = isLate(now)
+    const late = isLate(now);
     const record = {
       id: `${now.getTime()}`,
       date: todayStr.value,
       start: { ...punch, late },
       end: null
-    }
-    if (idx >= 0) list.splice(idx, 1, record)
-    else list.unshift(record)
-    msg = late ? '签到成功 · 迟到' : '签到成功'
+    };
+    if (idx >= 0) list.splice(idx, 1, record);
+    else list.unshift(record);
+    msg = late ? '签到成功 · 迟到' : '签到成功';
   } else {
-    if (idx < 0) return
-    const target = list[idx]
-    const early = isEarly(now, target.date)
-    list.splice(idx, 1, { ...target, end: { ...punch, early } })
-    if (target.end) msg = early ? '签退已更新 · 早退' : '签退时间已更新'
-    else msg = early ? '签退成功 · 早退' : '签退成功'
+    if (idx < 0) return;
+    const target = list[idx];
+    const early = isEarly(now, target.date);
+    list.splice(idx, 1, { ...target, end: { ...punch, early } });
+    if (target.end) msg = early ? '签退已更新 · 早退' : '签退时间已更新';
+    else msg = early ? '签退成功 · 早退' : '签退成功';
   }
-  records.value = list
-  saveRecords(list)
-  vibrate()
-  uni.showToast({ title: msg, icon: 'none', duration: 1500 })
-}
+  records.value = list;
+  saveRecords(list);
+  vibrate();
+  uni.showToast({ title: msg, icon: 'none', duration: 1500 });
+};
 
 // const confirmModal = (title, content, confirmText = '确定') =>
 // 	new Promise((resolve) => {
@@ -459,49 +459,49 @@ const promptLogin = () => {
     content: '登录后才能打卡，是否前往登录？',
     confirmText: '去登录',
     success: (res) => {
-      if (res.confirm) uni.switchTab({ url: '/pages/my/my' })
+      if (res.confirm) uni.switchTab({ url: '/pages/my/my' });
     }
-  })
-}
+  });
+};
 
 const handleCheckIn = async () => {
   if (!loggedIn.value) {
-    promptLogin()
-    return
+    promptLogin();
+    return;
   }
   if (!canPunch.value) {
-    toast('签到时间 06:00 开始')
-    return
+    toast('签到时间 06:00 开始');
+    return;
   }
   if (locating.value) {
-    toast('正在定位，请稍候')
-    return
+    toast('正在定位，请稍候');
+    return;
   }
   if (!current.value) {
-    await locate()
+    await locate();
     if (!current.value) {
-      toast('定位失败，无法打卡')
-      return
+      toast('定位失败，无法打卡');
+      return;
     }
   }
   if (!inRange.value) {
-    toast(`距离打卡点 ${formatDistance(distance.value)}，请靠近后打卡`)
-    return
+    toast(`距离打卡点 ${formatDistance(distance.value)}，请靠近后打卡`);
+    return;
   }
-  doCheckIn()
-}
+  doCheckIn();
+};
 
 const goRecord = () => {
-  uni.switchTab({ url: '/pages/record/record' })
-}
+  uni.switchTab({ url: '/pages/record/record' });
+};
 
 onShow(() => {
-  nowRef.value = new Date()
-  user.value = getUser()
-  loadRecords()
-  loadTarget()
-  if (!current.value && !locating.value) locate()
-})
+  nowRef.value = new Date();
+  user.value = getUser();
+  loadRecords();
+  loadTarget();
+  if (!current.value && !locating.value) locate();
+});
 </script>
 
 <style scoped lang="scss">
