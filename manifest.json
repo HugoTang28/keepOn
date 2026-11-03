@@ -54,7 +54,7 @@
   "quickapp": {},
   /* 小程序特有相关 */
   "mp-weixin": {
-    "appid": "",
+    "appid": "wxbd0cded2eac02dc1",
     "setting": {
       "urlCheck": false,
       "es6": true,
@@ -71,9 +71,7 @@
         "desc": "用于学习打卡定位，判断是否到达打卡点"
       }
     },
-    "requiredPrivateInfos": [
-      "getLocation"
-    ]
+    "requiredPrivateInfos": ["getLocation"]
   },
   "mp-alipay": {
     "usingComponents": true
