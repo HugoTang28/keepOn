@@ -266,7 +266,7 @@
 		if (!current.value) return '待定位'
 		if (!inRange.value) return '不在范围'
 		if (!canPunch.value) return '未到时间'
-		return punchType.value === 'end' ? '签退' : '签到'
+		// return punchType.value === 'end' ? '签退' : '签到'
 	})
 
 	const punchText = computed(() => (punchType.value === 'end' ? '签退' : '签到'))
