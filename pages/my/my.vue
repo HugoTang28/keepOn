@@ -29,7 +29,7 @@
         </view>
       </view>
 
-      <view class="list-card">
+      <view v-if="loggedIn" class="list-card">
         <view class="list-item" @click="goSetSite">
           <view class="item-icon">
             <u-icon name="map-fill" color="#4f6ef7" size="18"></u-icon>
@@ -60,6 +60,8 @@ const targetName = ref(getTarget().name);
 const user = ref(getUser());
 const logging = ref(false);
 const showSheet = ref(false);
+
+const loggedIn = computed(() => !!user.value.nickName); // 判断是否登录
 
 const loginTip = computed(() => {
   if (logging.value) return '正在唤起微信授权...';
@@ -139,6 +141,7 @@ const login = async () => {
   }
 };
 
+// 点击头像授权登录
 const handleProfileTap = () => {
   if (!user.value.nickName) login();
 };
