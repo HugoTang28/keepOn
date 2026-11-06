@@ -93,7 +93,6 @@ import {
   getUser,
   calcStreak,
   formatDate,
-  getDutyDate,
   isLateRecord,
   isEarlyRecord,
   pad
@@ -139,17 +138,27 @@ const isNextDay = (r) =>
   );
 
 // 考勤标签：
-// 1. 迟到判定不看签退：只要晚于 08:00 签到就是异常
-// 2. 未签退：当天（含凌晨 0–6 点归属前一天）算进行中，不判定；已过期则异常
-// 3. 签到签退齐全：无迟到/早退为正常，否则异常
+// 1. 签到：晚于 08:00 签到就是迟到
+// 2. 签到签退齐全：无迟到/早退为正常，否则异常
+// 3. 未签退：次日 06:00 之后才能判定
+//    （次日 06:00 前都视为"进行中"，不标记异常；超过后才记未签退异常）
+const canJudge = (r) => {
+  // 记录 r.date 的次日 06:00 之前
+  const parts = String(r.date || '').split('-');
+  const y = Number(parts[0]);
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!y || !m || !d) return true; // 日期无法解析时按可判定处理
+  const deadline = new Date(y, m - 1, d + 1, 6, 0, 0); // r.date 的次日 06:00
+  return new Date() >= deadline;
+};
 const statusOf = (r) => {
   if (!r.start) return '';
-  const late = isLateRecord(r);
   if (!r.end) {
-    if (late) return 'abnormal';
-    return r.date === getDutyDate(new Date()) ? '' : 'abnormal';
+    // 签退时效
+    return canJudge(r) ? 'abnormal' : '';
   }
-  return late || isEarlyRecord(r) ? 'abnormal' : 'normal';
+  return isLateRecord(r) || isEarlyRecord(r) ? 'abnormal' : 'normal';
 };
 
 const groups = computed(() => {
