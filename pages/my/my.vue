@@ -39,6 +39,10 @@
           <view class="item-arrow"></view>
         </view>
       </view>
+			
+<!-- 			<view v-if="loggedIn" class="list-card">
+			  <button @click="getCode">获取授权码</button>
+			</view> -->
     </view>
 
     <!-- 微信头像昵称填写-->
@@ -62,6 +66,22 @@ const logging = ref(false);
 const showSheet = ref(false);
 
 const loggedIn = computed(() => !!user.value.nickName); // 判断是否登录
+
+
+// 获取微信授权码
+function getCode() {
+	uni.login({
+	  provider: 'weixin',
+	  success(res) {
+	    console.log('code：', res.code);
+	    console.log('res：', res);
+	  },
+	  fail(err) {
+	    console.error('获取code失败', err);
+	  }
+	})
+
+}
 
 const loginTip = computed(() => {
   if (logging.value) return '正在唤起微信授权...';
