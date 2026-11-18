@@ -53,13 +53,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import {
-  clearUser,
-  getTarget,
-  getUser,
-  saveUser,
-  toast
-} from '@/utils/common';
+import { clearUser, getTarget, getUser, saveUser, toast } from '@/utils/common';
 import ProfileSheet from '@/components/my/profile-sheet.vue';
 
 const user = ref(getUser());
