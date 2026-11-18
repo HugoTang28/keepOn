@@ -39,10 +39,6 @@
           <view class="item-arrow"></view>
         </view>
       </view>
-			
-<!-- 			<view v-if="loggedIn" class="list-card">
-			  <button @click="getCode">获取授权码</button>
-			</view> -->
     </view>
 
     <!-- 微信头像昵称填写-->
@@ -55,49 +51,39 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 import { onShow } from '@dcloudio/uni-app';
-import { getTarget, getUser, saveUser, clearUser, toast } from '@/utils/common';
+import {
+  clearUser,
+  getTarget,
+  getUser,
+  saveUser,
+  toast
+} from '@/utils/common';
 import ProfileSheet from '@/components/my/profile-sheet.vue';
 
-const targetName = ref(getTarget().name);
 const user = ref(getUser());
+const targetName = ref(getTarget().name);
 const logging = ref(false);
 const showSheet = ref(false);
 
-const loggedIn = computed(() => !!user.value.nickName); // 判断是否登录
-
-
-// 获取微信授权码
-function getCode() {
-	uni.login({
-	  provider: 'weixin',
-	  success(res) {
-	    console.log('code：', res.code);
-	    console.log('res：', res);
-	  },
-	  fail(err) {
-	    console.error('获取code失败', err);
-	  }
-	})
-
-}
-
+const loggedIn = computed(() => !!user.value.nickName);
 const loginTip = computed(() => {
-  if (logging.value) return '正在唤起微信授权...';
-  return user.value.nickName ? '' : '点击使用微信登录';
+  if (logging.value) return '正在登录...';
+  return loggedIn.value ? '' : '点击登录';
 });
 
 const load = () => {
-  targetName.value = getTarget().name;
   user.value = getUser();
+  targetName.value = getTarget().name;
 };
 
 const goSetSite = () => {
   uni.navigateTo({ url: '/pages/my/setSite/index' });
 };
 
-// 微信登录：uni.login 建立会话，getUserProfile 取昵称头像
+// 微信登录：uni.login 建立会话，getUserProfile 获取昵称头像
+// #ifdef MP-WEIXIN
 const weixinLogin = () =>
   new Promise((resolve, reject) => {
     uni.login({ provider: 'weixin', success: resolve, fail: reject });
@@ -112,30 +98,45 @@ const weixinProfile = () =>
     });
   });
 
+const getWeixinProfile = async () => {
+  await weixinLogin();
+  return weixinProfile();
+};
+// #endif
+
 const applyUser = (nickName, avatarUrl = '') => {
   try {
     saveUser({ nickName, avatarUrl });
     user.value = getUser();
     toast('登录成功');
+    return true;
   } catch (e) {
+    console.warn('[my] 保存用户信息失败：', e);
     toast('保存失败，请重试');
+    return false;
   }
-};
-
-// 组件内已处理头像选择与 base64 转换，这里只负责落库
-const onProfileConfirm = ({ nickName, avatarUrl }) => {
-  applyUser(nickName, avatarUrl);
-  showSheet.value = false;
 };
 
 const openSheet = () => {
   showSheet.value = true;
 };
 
+// 组件内已处理头像选择与 base64 转换，这里只负责校验并落库
+const onProfileConfirm = ({ nickName = '', avatarUrl = '' } = {}) => {
+  const name = (nickName || '').trim();
+  if (!name || !applyUser(name, avatarUrl)) return;
+  showSheet.value = false;
+};
+
 const logout = () => {
-  clearUser();
-  user.value = getUser();
-  toast('已退出登录');
+  try {
+    clearUser();
+    user.value = getUser();
+    toast('已退出登录');
+  } catch (e) {
+    console.warn('[my] 退出登录失败：', e);
+    toast('退出失败，请重试');
+  }
 };
 
 const login = async () => {
@@ -143,27 +144,25 @@ const login = async () => {
   logging.value = true;
   try {
     // #ifdef MP-WEIXIN
-    await weixinLogin();
-    const info = await weixinProfile();
+    const info = await getWeixinProfile();
     const nickName = (info.nickName || '').trim();
-    // 微信对旧接口只会返回"微信用户"，这种情况改用官方昵称填写能力
+    // 新版接口可能只返回“微信用户”，改用官方昵称头像填写能力
     if (nickName && nickName !== '微信用户') {
-      applyUser(nickName, info.avatarUrl || '');
-      return;
+      if (applyUser(nickName, info.avatarUrl || '')) return;
     }
-    openSheet();
-    return;
     // #endif
+    openSheet();
   } catch (e) {
+    console.warn('[my] 登录失败：', e);
     toast('已取消登录');
   } finally {
     logging.value = false;
   }
 };
 
-// 点击头像授权登录
+// 点击头像登录
 const handleProfileTap = () => {
-  if (!user.value.nickName) login();
+  if (!loggedIn.value) login();
 };
 
 const handleLogout = () => {
@@ -176,9 +175,7 @@ const handleLogout = () => {
   });
 };
 
-onShow(() => {
-  load();
-});
+onShow(load);
 </script>
 
 <style scoped lang="scss">
@@ -225,10 +222,20 @@ onShow(() => {
       }
 
       .profile-info {
+        flex: 1;
+        min-width: 0;
         margin-left: 24rpx;
         display: flex;
         flex-direction: column;
         align-items: flex-start;
+
+        .login-text,
+        .login-tip {
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
 
         .login-text {
           font-size: 32rpx;
